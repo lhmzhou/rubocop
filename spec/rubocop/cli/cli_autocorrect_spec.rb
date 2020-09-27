@@ -174,6 +174,28 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
     RUBY
   end
 
+  it 'corrects `EnforcedStyle: hash_rockets` of `Style/HashSyntax` with `Layout/HashAlignment`' do
+    create_file('.rubocop.yml', <<~YAML)
+      Style/HashSyntax:
+        EnforcedStyle: hash_rockets
+    YAML
+    source = <<~RUBY
+      some_method(a: 'abc', b: 'abc',
+              c: 'abc', d: 'abc'
+              )
+    RUBY
+    create_file('example.rb', source)
+    expect(cli.run([
+                     '--auto-correct-all',
+                     '--only', 'Style/HashSyntax,Style/HashAlignment'
+                   ])).to eq(0)
+    expect(IO.read('example.rb')).to eq(<<~RUBY)
+      some_method(:a => 'abc', :b => 'abc',
+                  :c => 'abc', :d => 'abc'
+              )
+    RUBY
+  end
+
   describe 'trailing comma cops' do
     let(:source) do
       <<~RUBY
@@ -554,6 +576,7 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
             EnforcedStyle: #{style}
         YAML
         expect(cli.run(['--auto-correct-all'])).to eq(1)
+        # rubocop:disable Style/HashLikeCase
         corrected = case style
                     when :semantic
                       <<~RUBY
@@ -589,6 +612,7 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
                         end.baz
                       RUBY
                     end
+        # rubocop:enable Style/HashLikeCase
         expect($stderr.string).to eq('')
         expect(IO.read('example.rb')).to eq(corrected)
       end
@@ -653,13 +677,12 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
       C:  2:  1: [Corrected] Layout/EmptyLineAfterMagicComment: Add an empty line after magic comments.
       C:  3:  1: Style/Documentation: Missing top-level class documentation comment.
       W:  4:  3: [Corrected] Lint/RedundantCopDisableDirective: Unnecessary disabling of Metrics/MethodLength.
-      C:  5:  1: [Corrected] Layout/EmptyLinesAroundMethodBody: Extra empty line detected at method body beginning.
-      C:  5:  1: [Corrected] Layout/TrailingWhitespace: Trailing whitespace detected.
+      C:  5:  3: [Corrected] Layout/IndentationWidth: Use 2 (not 6) spaces for indentation.
       W:  5: 22: [Corrected] Lint/RedundantCopEnableDirective: Unnecessary enabling of Metrics/MethodLength.
       W:  7: 54: [Corrected] Lint/RedundantCopDisableDirective: Unnecessary disabling of Style/For.
       W:  9:  5: [Corrected] Lint/RedundantCopDisableDirective: Unnecessary disabling of Style/ClassVars.
 
-      1 file inspected, 9 offenses detected, 8 offenses corrected
+      1 file inspected, 8 offenses detected, 7 offenses corrected
     RESULT
     corrected = <<~RUBY
       # frozen_string_literal: true
@@ -721,7 +744,7 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
         bar
       rescue StandardError
         baz
-        end
+      end
 
       def func
         x; y; rescue StandardError; z
@@ -1087,7 +1110,7 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
 
       module A
         module B
-      end end
+        end end
     RUBY
     uncorrected = $stdout.string.split($RS).select do |line|
       line.include?('example.rb:') && !line.include?('[Corrected]')
@@ -1386,7 +1409,7 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
       C:  2: 34: Style/Semicolon: Do not use semicolons to terminate expressions.
       W:  3: 27: Lint/UnusedMethodArgument: Unused method argument - bar.
 
-      1 file inspected, 3 offenses detected
+      1 file inspected, 3 offenses detected, 3 more offenses can be corrected with `rubocop -A`
     RESULT
   end
 
@@ -1539,6 +1562,72 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
     RUBY
   end
 
+  it 'corrects Lint/ParenthesesAsGroupedExpression and offenses and ' \
+     'accepts Style/RedundantParentheses' do
+    create_file('example.rb', <<~RUBY)
+      do_something (argument)
+    RUBY
+    expect(
+      cli.run(
+        [
+          '--auto-correct',
+          '--only', 'Lint/ParenthesesAsGroupedExpression,Style/RedundantParentheses'
+        ]
+      )
+    ).to eq(0)
+    expect(IO.read('example.rb')).to eq(<<~RUBY)
+      do_something(argument)
+    RUBY
+  end
+
+  it 'does not crash Lint/SafeNavigationWithEmpty and offenses and accepts Style/SafeNavigation ' \
+     'when checking `foo&.empty?` in a conditional' do
+    create_file('example.rb', <<~RUBY)
+      do_something if ENV['VERSION'] && ENV['VERSION'].empty?
+    RUBY
+    expect(
+      cli.run(
+        [
+          '--auto-correct',
+          '--only', 'Lint/SafeNavigationWithEmpty,Style/SafeNavigation'
+        ]
+      )
+    ).to eq(0)
+    expect(IO.read('example.rb')).to eq(<<~RUBY)
+      do_something if ENV['VERSION'] && ENV['VERSION'].empty?
+    RUBY
+  end
+
+  it 'does not crash when using Lint/SafeNavigationWithEmpty and Layout/EmptyLinesAroundBlockBody' do
+    create_file('example.rb', <<~RUBY)
+      FactoryBot.define do
+        factory :model do
+          name { 'value' }
+
+          private { value }
+        end
+      end
+    RUBY
+
+    expect(
+      cli.run(
+        [
+          '--auto-correct',
+          '--only', 'Layout/EmptyLinesAroundAccessModifier,Layout/EmptyLinesAroundBlockBody'
+        ]
+      )
+    ).to eq(0)
+    expect(IO.read('example.rb')).to eq(<<~RUBY)
+      FactoryBot.define do
+        factory :model do
+          name { 'value' }
+
+          private { value }
+        end
+      end
+    RUBY
+  end
+
   it 'corrects TrailingCommaIn(Array|Hash)Literal and ' \
      'Multiline(Array|Hash)BraceLayout offenses' do
     create_file('.rubocop.yml', <<~YAML)
@@ -1582,5 +1671,26 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
         bar: 2,}.to_s
     RUBY
     expect(source_file.read).to eq(corrected)
+  end
+
+  it 'does not correct Style/IfUnlessModifier offense disabled by a comment directive and ' \
+     'does not fire Lint/RedundantCopDisableDirective offense even though that directive ' \
+     'would make the modifier form too long' do
+    create_file('.rubocop.yml', <<~YAML)
+      Style/FrozenStringLiteralComment:
+        Enabled: false
+    YAML
+
+    source_file = Pathname('example.rb')
+    source = <<~RUBY
+      if i > 1 # rubocop:disable Style/IfUnlessModifier
+        raise '_______________________________________________________________________'
+      end
+    RUBY
+    create_file(source_file, source)
+
+    status = cli.run(['--auto-correct-all'])
+    expect(status).to eq(0)
+    expect(source_file.read).to eq(source)
   end
 end

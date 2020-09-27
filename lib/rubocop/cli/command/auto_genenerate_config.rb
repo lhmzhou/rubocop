@@ -4,6 +4,7 @@ module RuboCop
   class CLI
     module Command
       # Generate a configuration file acting as a TODO list.
+      # @api private
       class AutoGenerateConfig < Base
         self.command_name = :auto_gen_config
 
@@ -27,10 +28,10 @@ module RuboCop
         private
 
         def maybe_run_line_length_cop
-          if !line_length_enabled?(@config_store.for_dir(Dir.pwd))
+          if !line_length_enabled?(@config_store.for_pwd)
             skip_line_length_cop(PHASE_1_DISABLED)
           elsif !same_max_line_length?(
-            @config_store.for_dir(Dir.pwd), ConfigLoader.default_configuration
+            @config_store.for_pwd, ConfigLoader.default_configuration
           )
             skip_line_length_cop(PHASE_1_OVERRIDDEN)
           else
@@ -113,7 +114,7 @@ module RuboCop
             return if files.include?(AUTO_GENERATED_FILE)
 
             files.unshift(AUTO_GENERATED_FILE)
-            file_string = "\n  - " + files.join("\n  - ") if files.size > 1
+            file_string = "\n  - #{files.join("\n  - ")}" if files.size > 1
             rubocop_yml_contents = existing_configuration(config_file)
           end
 

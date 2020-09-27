@@ -46,6 +46,9 @@ module RuboCop
       # Consider creation API private
       InvestigationReport = Struct.new(:cop, :processed_source, :offenses, :corrector)
 
+      # List of methods names to restrict calls for `on_send` / `on_csend`
+      RESTRICT_ON_SEND = Set[].freeze
+
       # List of cops that should not try to autocorrect at the same
       # time as this cop
       #
@@ -54,6 +57,14 @@ module RuboCop
       # @api public
       def self.autocorrect_incompatible_with
         []
+      end
+
+      # Cops (other than builtin) are encouraged to implement this
+      # @return [String, nil]
+      #
+      # @api public
+      def self.documentation_url
+        Documentation.url_for(self) if builtin?
       end
 
       def initialize(config = nil, options = nil)
@@ -105,7 +116,7 @@ module RuboCop
       # If message is not specified, the method `message` will be called.
       def add_offense(node_or_range, message: nil, severity: nil, &block)
         range = range_from_node_or_range(node_or_range)
-        return unless @current_offense_locations.add?(range)
+        return unless current_offense_locations.add?(range)
 
         range_to_pass = callback_argument(range)
 
@@ -137,6 +148,7 @@ module RuboCop
       end
 
       def self.inherited(subclass)
+        super
         Registry.global.enlist(subclass)
       end
 
@@ -189,8 +201,7 @@ module RuboCop
       def cop_config
         # Use department configuration as basis, but let individual cop
         # configuration override.
-        @cop_config ||= @config.for_cop(self.class.department.to_s)
-                               .merge(@config.for_cop(self))
+        @cop_config ||= @config.for_badge(self.class.badge)
       end
 
       def config_to_allow_offenses
@@ -271,11 +282,23 @@ module RuboCop
 
       ### Reserved for Commissioner:
 
+      def current_offense_locations
+        @current_offense_locations ||= Set.new
+      end
+
+      def currently_disabled_lines
+        @currently_disabled_lines ||= Set.new
+      end
+
+      private_class_method def self.restrict_on_send
+        @restrict_on_send ||= self::RESTRICT_ON_SEND.to_set.freeze
+      end
+
       # Called before any investigation
       def begin_investigation(processed_source)
         @current_offenses = []
-        @current_offense_locations = Set[]
-        @currently_disabled_lines = Set[]
+        @current_offense_locations = nil
+        @currently_disabled_lines = nil
         @processed_source = processed_source
         @current_corrector = Corrector.new(@processed_source) if @processed_source.valid_syntax?
       end
@@ -288,6 +311,14 @@ module RuboCop
       end
 
       ### Actually private methods
+
+      def self.builtin?
+        return false unless (m = instance_methods(false).first) # any custom method will do
+
+        path, _line = instance_method(m).source_location
+        path.start_with?(__dir__)
+      end
+      private_class_method :builtin?
 
       def reset_investigation
         @currently_disabled_lines = @current_offenses = @processed_source = @current_corrector = nil
@@ -327,7 +358,7 @@ module RuboCop
 
       def disable_uncorrectable(range)
         line = range.line
-        return unless @currently_disabled_lines.add?(line)
+        return unless currently_disabled_lines.add?(line)
 
         disable_offense(range)
       end

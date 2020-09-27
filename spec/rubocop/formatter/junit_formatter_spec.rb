@@ -7,21 +7,21 @@ RSpec.describe RuboCop::Formatter::JUnitFormatter, :config do
   let(:cop_class) { RuboCop::Cop::Layout::SpaceInsideBlockBraces }
   let(:source) { %w[foo bar baz].join("\n") }
 
+  before { cop.send(:begin_investigation, processed_source) }
+
   describe '#file_finished' do
     before do
       cop.add_offense(
-        nil,
-        location: Parser::Source::Range.new(source_buffer, 0, 1),
+        Parser::Source::Range.new(source_buffer, 0, 1),
         message: 'message 1'
       )
-      cop.add_offense(
-        nil,
-        location: Parser::Source::Range.new(source_buffer, 9, 10),
+      offenses = cop.add_offense(
+        Parser::Source::Range.new(source_buffer, 9, 10),
         message: 'message 2'
       )
 
-      formatter.file_finished('test_1', cop.offenses)
-      formatter.file_finished('test_2', cop.offenses)
+      formatter.file_finished('test_1', offenses)
+      formatter.file_finished('test_2', offenses)
 
       formatter.finished(nil)
     end

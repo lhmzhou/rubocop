@@ -104,6 +104,66 @@ end
 | Boolean
 |===
 
+== Style/AccessorGrouping
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| Yes
+| Yes
+| 0.87
+| -
+|===
+
+This cop checks for grouping of accessors in `class` and `module` bodies.
+By default it enforces accessors to be placed in grouped declarations,
+but it can be configured to enforce separating them in multiple declarations.
+
+=== Examples
+
+==== EnforcedStyle: grouped (default)
+
+[source,ruby]
+----
+# bad
+class Foo
+  attr_reader :bar
+  attr_reader :baz
+end
+
+# good
+class Foo
+  attr_reader :bar, :baz
+end
+----
+
+==== EnforcedStyle: separated
+
+[source,ruby]
+----
+# bad
+class Foo
+  attr_reader :bar, :baz
+end
+
+# good
+class Foo
+  attr_reader :bar
+  attr_reader :baz
+end
+----
+
+=== Configurable attributes
+
+|===
+| Name | Default value | Configurable values
+
+| EnforcedStyle
+| `grouped`
+| `separated`, `grouped`
+|===
+
 == Style/Alias
 
 |===
@@ -229,6 +289,43 @@ end
 === References
 
 * https://rubystyle.guide#no-and-or-or
+
+== Style/ArrayCoercion
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Disabled
+| No
+| Yes (Unsafe)
+| 0.88
+| -
+|===
+
+This cop enforces the use of `Array()` instead of explicit `Array` check or `[*var]`.
+
+This cop is disabled by default because false positive will occur if
+the argument of `Array()` is not an array (e.g. Hash, Set),
+an array will be returned as an incompatibility result.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+paths = [paths] unless paths.is_a?(Array)
+paths.each { |path| do_something(path) }
+
+# bad (always creates a new Array instance)
+[*paths].each { |path| do_something(path) }
+
+# good (and a bit more readable)
+Array(paths).each { |path| do_something(path) }
+----
+
+=== References
+
+* https://rubystyle.guide#array-coercion
 
 == Style/ArrayJoin
 
@@ -445,6 +542,37 @@ BEGIN { test }
 === References
 
 * https://rubystyle.guide#no-BEGIN-blocks
+
+== Style/BisectedAttrAccessor
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| Yes
+| Yes
+| 0.87
+| -
+|===
+
+This cop checks for places where `attr_reader` and `attr_writer`
+for the same method can be combined into single `attr_accessor`.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+class Foo
+  attr_reader :bar
+  attr_writer :bar
+end
+
+# good
+class Foo
+  attr_accessor :bar
+end
+----
 
 == Style/BlockComments
 
@@ -682,9 +810,9 @@ end
 
 | Enabled
 | Yes
-| No
+| Yes
 | 0.9
-| -
+| 0.89
 |===
 
 This cop checks for uses of the case equality operator(===).
@@ -701,7 +829,7 @@ Array === something
 # good
 something.is_a?(Array)
 (1..100).include?(7)
-some_string =~ /something/
+/something/.match?(some_string)
 ----
 
 ==== AllowOnConstant
@@ -718,7 +846,7 @@ some_string =~ /something/
 # good
 Array === something
 (1..100).include?(7)
-some_string =~ /something/
+/something/.match?(some_string)
 ----
 
 === Configurable attributes
@@ -734,6 +862,49 @@ some_string =~ /something/
 === References
 
 * https://rubystyle.guide#no-case-equality
+
+== Style/CaseLikeIf
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| No
+| Yes (Unsafe)
+| 0.88
+| -
+|===
+
+This cop identifies places where `if-elsif` constructions
+can be replaced with `case-when`.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+if status == :active
+  perform_action
+elsif status == :inactive || status == :hibernating
+  check_timeout
+else
+  final_action
+end
+
+# good
+case status
+when :active
+  perform_action
+when :inactive, :hibernating
+  check_timeout
+else
+  final_action
+end
+----
+
+=== References
+
+* https://rubystyle.guide#case-vs-if-else
 
 == Style/CharacterLiteral
 
@@ -812,10 +983,6 @@ end
 
 |===
 | Name | Default value | Configurable values
-
-| AutoCorrect
-| `false`
-| Boolean
 
 | EnforcedStyle
 | `nested`
@@ -915,6 +1082,97 @@ class SomeClass
   end
 end
 ----
+
+=== References
+
+* https://rubystyle.guide#def-self-class-methods
+
+== Style/ClassMethodsDefinitions
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Disabled
+| Yes
+| Yes
+| 0.89
+| -
+|===
+
+This cop enforces using `def self.method_name` or `class << self` to define class methods.
+
+=== Examples
+
+==== EnforcedStyle: def_self (default)
+
+[source,ruby]
+----
+# bad
+class SomeClass
+  class << self
+    attr_accessor :class_accessor
+
+    def class_method
+      # ...
+    end
+  end
+end
+
+# good
+class SomeClass
+  def self.class_method
+    # ...
+  end
+
+  class << self
+    attr_accessor :class_accessor
+  end
+end
+
+# good - contains private method
+class SomeClass
+  class << self
+    attr_accessor :class_accessor
+
+    private
+
+    def private_class_method
+      # ...
+    end
+  end
+end
+----
+
+==== EnforcedStyle: self_class
+
+[source,ruby]
+----
+# bad
+class SomeClass
+  def self.class_method
+    # ...
+  end
+end
+
+# good
+class SomeClass
+  class << self
+    def class_method
+      # ...
+    end
+  end
+end
+----
+
+=== Configurable attributes
+
+|===
+| Name | Default value | Configurable values
+
+| EnforcedStyle
+| `def_self`
+| `def_self`, `self_class`
+|===
 
 === References
 
@@ -1116,6 +1374,68 @@ end
 
 * https://rubystyle.guide#colon-method-definition
 
+== Style/CombinableLoops
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| No
+| No
+| 0.90
+| -
+|===
+
+This cop checks for places where multiple consecutive loops over the same data
+can be combined into a single loop. It is very likely that combining them
+will make the code more efficient and more concise.
+
+It is marked as unsafe, because the first loop might modify
+a state that the second loop depends on; these two aren't combinable.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+def method
+  items.each do |item|
+    do_something(item)
+  end
+
+  items.each do |item|
+    do_something_else(item)
+  end
+end
+
+# good
+def method
+  items.each do |item|
+    do_something(item)
+    do_something_else(item)
+  end
+end
+
+# bad
+def method
+  for item in items do
+    do_something(item)
+  end
+
+  for item in items do
+    do_something_else(item)
+  end
+end
+
+# good
+def method
+  for item in items do
+    do_something(item)
+    do_something_else(item)
+  end
+end
+----
+
 == Style/CommandLiteral
 
 |===
@@ -1255,6 +1575,12 @@ folders = %x(find . -type d).split
 
 This cop checks that comment annotation keywords are written according
 to guidelines.
+
+NOTE: With a multiline comment block (where each line is only a
+comment), only the first line will be able to register an offense, even
+if an annotation keyword starts another line. This is done to prevent
+incorrect registering of keywords (eg. `review`) inside a paragraph as an
+annotation.
 
 === Examples
 
@@ -1563,9 +1889,9 @@ an offense is reported.
 
 | Disabled
 | Yes
-| No
+| Yes (Unsafe)
 | 0.51
-| 0.59
+| 0.92
 |===
 
 This cop checks for consistent usage of the `DateTime` class over the
@@ -2646,6 +2972,58 @@ Pathname.new(__FILE__).parent.expand_path
 Pathname.new(__dir__).expand_path
 ----
 
+== Style/ExplicitBlockArgument
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| No
+| Yes (Unsafe)
+| 0.89
+| -
+|===
+
+This cop enforces the use of explicit block argument to avoid writing
+block literal that just passes its arguments to another block.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+def with_tmp_dir
+  Dir.mktmpdir do |tmp_dir|
+    Dir.chdir(tmp_dir) { |dir| yield dir } # block just passes arguments
+  end
+end
+
+# bad
+def nine_times
+  9.times { yield }
+end
+
+# good
+def with_tmp_dir(&block)
+  Dir.mktmpdir do |tmp_dir|
+    Dir.chdir(tmp_dir, &block)
+  end
+end
+
+with_tmp_dir do |dir|
+  puts "dir is accessible as a parameter and pwd is set: #{dir}"
+end
+
+# good
+def nine_times(&block)
+  9.times(&block)
+end
+----
+
+=== References
+
+* https://rubystyle.guide#block-argument
+
 == Style/ExponentialNotation
 
 |===
@@ -3040,7 +3418,7 @@ format('%s', 'Hello')
 | Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
 
 | Enabled
-| No
+| Yes
 | Yes (Unsafe)
 | 0.36
 | 0.79
@@ -3141,6 +3519,50 @@ end
 | `always`, `always_true`, `never`
 |===
 
+== Style/GlobalStdStream
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| Yes
+| Yes (Unsafe)
+| 0.89
+| -
+|===
+
+This cop enforces the use of `$stdout/$stderr/$stdin` instead of `STDOUT/STDERR/STDIN`.
+`STDOUT/STDERR/STDIN` are constants, and while you can actually
+reassign (possibly to redirect some stream) constants in Ruby, you'll get
+an interpreter warning if you do so.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+STDOUT.puts('hello')
+
+hash = { out: STDOUT, key: value }
+
+def m(out = STDOUT)
+  out.puts('hello')
+end
+
+# good
+$stdout.puts('hello')
+
+hash = { out: $stdout, key: value }
+
+def m(out = $stdout)
+  out.puts('hello')
+end
+----
+
+=== References
+
+* https://rubystyle.guide#global-stdout
+
 == Style/GlobalVars
 
 |===
@@ -3218,6 +3640,7 @@ end
 # good
 def test
   return unless something
+
   work
 end
 
@@ -3263,6 +3686,68 @@ ok
 
 * https://rubystyle.guide#no-nested-conditionals
 
+== Style/HashAsLastArrayItem
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| Yes
+| Yes
+| 0.88
+| -
+|===
+
+Checks for presence or absence of braces around hash literal as a last
+array item depending on configuration.
+
+NOTE: This cop will ignore arrays where all items are hashes, regardless of
+EnforcedStyle.
+
+=== Examples
+
+==== EnforcedStyle: braces (default)
+
+[source,ruby]
+----
+# bad
+[1, 2, one: 1, two: 2]
+
+# good
+[1, 2, { one: 1, two: 2 }]
+
+# good
+[{ one: 1 }, { two: 2 }]
+----
+
+==== EnforcedStyle: no_braces
+
+[source,ruby]
+----
+# bad
+[1, 2, { one: 1, two: 2 }]
+
+# good
+[1, 2, one: 1, two: 2]
+
+# good
+[{ one: 1 }, { two: 2 }]
+----
+
+=== Configurable attributes
+
+|===
+| Name | Default value | Configurable values
+
+| EnforcedStyle
+| `braces`
+| `braces`, `no_braces`
+|===
+
+=== References
+
+* https://rubystyle.guide#hash-literal-as-last-array-item
+
 == Style/HashEachMethods
 
 |===
@@ -3297,6 +3782,71 @@ hash.each_value { |v| p v }
 === References
 
 * https://rubystyle.guide#hash-each
+
+== Style/HashLikeCase
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| Yes
+| No
+| 0.88
+| -
+|===
+
+This cop checks for places where `case-when` represents a simple 1:1
+mapping and can be replaced with a hash lookup.
+
+=== Examples
+
+==== MinBranchesCount: 3 (default)
+
+[source,ruby]
+----
+# bad
+case country
+when 'europe'
+  'http://eu.example.com'
+when 'america'
+  'http://us.example.com'
+when 'australia'
+  'http://au.example.com'
+end
+
+# good
+SITES = {
+  'europe'    => 'http://eu.example.com',
+  'america'   => 'http://us.example.com',
+  'australia' => 'http://au.example.com'
+}
+SITES[country]
+----
+
+==== MinBranchesCount: 4
+
+[source,ruby]
+----
+# good
+case country
+when 'europe'
+  'http://eu.example.com'
+when 'america'
+  'http://us.example.com'
+when 'australia'
+  'http://au.example.com'
+end
+----
+
+=== Configurable attributes
+
+|===
+| Name | Default value | Configurable values
+
+| MinBranchesCount
+| `3`
+| Integer
+|===
 
 == Style/HashSyntax
 
@@ -3413,7 +3963,7 @@ NOTE: Required Ruby version: 2.5
 | No
 | Yes (Unsafe)
 | 0.80
-| -
+| 0.90
 |===
 
 This cop looks for uses of `_.each_with_object({}) {...}`,
@@ -3434,7 +3984,9 @@ This cop should only be enabled on Ruby version 2.5 or newer
 ----
 # bad
 {a: 1, b: 2}.each_with_object({}) { |(k, v), h| h[foo(k)] = v }
-{a: 1, b: 2}.map { |k, v| [k.to_s, v] }
+Hash[{a: 1, b: 2}.collect { |k, v| [foo(k), v] }]
+{a: 1, b: 2}.map { |k, v| [k.to_s, v] }.to_h
+{a: 1, b: 2}.to_h { |k, v| [k.to_s, v] }
 
 # good
 {a: 1, b: 2}.transform_keys { |k| foo(k) }
@@ -3450,7 +4002,7 @@ This cop should only be enabled on Ruby version 2.5 or newer
 | No
 | Yes (Unsafe)
 | 0.80
-| -
+| 0.90
 |===
 
 This cop looks for uses of `_.each_with_object({}) {...}`,
@@ -3471,7 +4023,9 @@ This cop should only be enabled on Ruby version 2.4 or newer
 ----
 # bad
 {a: 1, b: 2}.each_with_object({}) { |(k, v), h| h[k] = foo(v) }
-{a: 1, b: 2}.map { |k, v| [k, v * v] }
+Hash[{a: 1, b: 2}.collect { |k, v| [k, foo(v)] }]
+{a: 1, b: 2}.map { |k, v| [k, v * v] }.to_h
+{a: 1, b: 2}.to_h { |k, v| [k, v * v] }
 
 # good
 {a: 1, b: 2}.transform_values { |v| foo(v) }
@@ -3916,7 +4470,7 @@ end
 | Yes
 | No
 | 0.58
-| 0.77
+| 0.91
 |===
 
 This cop checks for hardcoded IP addresses, which can make code
@@ -3944,7 +4498,49 @@ ip_address = ENV['DEPLOYMENT_IP_ADDRESS']
 | AllowedAddresses
 | `::`
 | Array
+
+| Exclude
+| `**/*.gemfile`, `**/Gemfile`, `**/gems.rb`, `**/*.gemspec`
+| Array
 |===
+
+== Style/KeywordParametersOrder
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| Yes
+| Yes
+| 0.90
+| -
+|===
+
+This cop enforces that optional keyword parameters are placed at the
+end of the parameters list.
+
+This improves readability, because when looking through the source,
+it is expected to find required parameters at the beginning of parameters list
+and optional parameters at the end.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+def some_method(first: false, second:, third: 10)
+  # body omitted
+end
+
+# good
+def some_method(second:, first: false, third: 10)
+  # body omitted
+end
+----
+
+=== References
+
+* https://rubystyle.guide#keyword-parameters-order
 
 == Style/Lambda
 
@@ -4399,9 +4995,19 @@ when reading code.
 
 [source,ruby]
 ----
+# bad
 a do
   b
 end.c
+
+# good
+a { b }.c
+
+# good
+foo = a do
+  b
+end
+foo.c
 ----
 
 === References
@@ -4529,42 +5135,6 @@ end
 === References
 
 * https://rubystyle.guide#method-parens
-
-== Style/MethodMissingSuper
-
-|===
-| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
-
-| Enabled
-| Yes
-| No
-| 0.56
-| -
-|===
-
-This cop checks for the presence of `method_missing` without
-falling back on `super`.
-
-=== Examples
-
-[source,ruby]
-----
-#bad
-def method_missing(name, *args)
-  # ...
-end
-
-#good
-
-def method_missing(name, *args)
-  # ...
-  super
-end
-----
-
-=== References
-
-* https://rubystyle.guide#no-method-missing
 
 == Style/MinMax
 
@@ -5200,6 +5770,9 @@ end
 |===
 
 This cop checks for multi-line ternary op expressions.
+
+NOTE: `return if ... else ... end` is syntax error. If `return` is used before
+multiline ternary operator expression, it cannot be auto-corrected.
 
 === Examples
 
@@ -6161,10 +6734,6 @@ bar.baz > 0
 |===
 | Name | Default value | Configurable values
 
-| AutoCorrect
-| `false`
-| Boolean
-
 | EnforcedStyle
 | `predicate`
 | `predicate`, `comparison`
@@ -6191,32 +6760,50 @@ bar.baz > 0
 | Yes
 | Yes
 | 0.9
-| 0.38
+| 0.90
 |===
 
-TODO: Make configurable.
-Checks for uses of if/then/else/end on a single line.
+Checks for uses of if/then/else/end constructs on a single line.
+AlwaysCorrectToMultiline config option can be set to true to auto-convert all offenses to
+multi-line constructs. When AlwaysCorrectToMultiline is false (default case) the
+auto-correct will first try converting them to ternary operators.
 
 === Examples
 
 [source,ruby]
 ----
 # bad
-if foo then boo else doo end
-unless foo then boo else goo end
+if foo then bar else baz end
+
+# bad
+unless foo then baz else bar end
 
 # good
-foo ? boo : doo
-boo if foo
-if foo then boo end
+foo ? bar : baz
+
+# good
+bar if foo
+
+# good
+if foo then bar end
 
 # good
 if foo
-  boo
+  bar
 else
-  doo
+  baz
 end
 ----
+
+=== Configurable attributes
+
+|===
+| Name | Default value | Configurable values
+
+| AlwaysCorrectToMultiline
+| `false`
+| Boolean
+|===
 
 === References
 
@@ -6297,6 +6884,67 @@ end
 === References
 
 * https://rubystyle.guide#optional-arguments
+
+== Style/OptionalBooleanParameter
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| No
+| No
+| 0.89
+| -
+|===
+
+This cop checks for places where keyword arguments can be used instead of
+boolean arguments when defining methods. `respond_to_missing?` method is allowed by default.
+These are customizable with `AllowedMethods` option.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+def some_method(bar = false)
+  puts bar
+end
+
+# bad - common hack before keyword args were introduced
+def some_method(options = {})
+  bar = options.fetch(:bar, false)
+  puts bar
+end
+
+# good
+def some_method(bar: false)
+  puts bar
+end
+----
+
+==== AllowedMethods: ['some_method']
+
+[source,ruby]
+----
+# good
+def some_method(bar = false)
+  puts bar
+end
+----
+
+=== Configurable attributes
+
+|===
+| Name | Default value | Configurable values
+
+| AllowedMethods
+| `respond_to_missing?`
+| Array
+|===
+
+=== References
+
+* https://rubystyle.guide#boolean-keyword-arguments
 
 == Style/OrAssignment
 
@@ -6812,6 +7460,56 @@ rand(1...7)
 
 * https://rubystyle.guide#random-numbers
 
+== Style/RedundantAssignment
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| Yes
+| Yes
+| 0.87
+| -
+|===
+
+This cop checks for redundant assignment before returning.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+def test
+  x = foo
+  x
+end
+
+# bad
+def test
+  if x
+    z = foo
+    z
+  elsif y
+    z = bar
+    z
+  end
+end
+
+# good
+def test
+  foo
+end
+
+# good
+def test
+  if x
+    foo
+  elsif y
+    bar
+  end
+end
+----
+
 == Style/RedundantBegin
 
 |===
@@ -7091,6 +7789,47 @@ ENV.fetch(:key, VALUE)
 === References
 
 * https://github.com/JuanitoFatas/fast-ruby#hashfetch-with-argument-vs-hashfetch--block-code
+
+== Style/RedundantFileExtensionInRequire
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| Yes
+| Yes
+| 0.88
+| -
+|===
+
+This cop checks for the presence of superfluous `.rb` extension in
+the filename provided to `require` and `require_relative`.
+
+Note: If the extension is omitted, Ruby tries adding '.rb', '.so',
+      and so on to the name until found. If the file named cannot be found,
+      a `LoadError` will be raised.
+      There is an edge case where `foo.so` file is loaded instead of a `LoadError`
+      if `foo.so` file exists when `require 'foo.rb'` will be changed to `require 'foo'`,
+      but that seems harmless.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+require 'foo.rb'
+require_relative '../foo.rb'
+
+# good
+require 'foo'
+require 'foo.so'
+require_relative '../foo'
+require_relative '../foo.so'
+----
+
+=== References
+
+* https://rubystyle.guide#no-explicit-rb-to-require
 
 == Style/RedundantFreeze
 
@@ -7422,6 +8161,46 @@ end
 === References
 
 * https://rubystyle.guide#no-self-unless-required
+
+== Style/RedundantSelfAssignment
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| No
+| Yes (Unsafe)
+| 0.90
+| -
+|===
+
+This cop checks for places where redundant assignments are made for in place
+modification methods.
+
+This cop is marked as unsafe, because it can produce false positives for
+user defined methods having one of the expected names, but not modifying
+its receiver in place.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+args = args.concat(ary)
+hash = hash.merge!(other)
+
+# good
+args.concat(foo)
+args += foo
+hash.merge!(other)
+
+# bad
+self.foo = foo.concat(ary)
+
+# good
+foo.concat(ary)
+self.foo += ary
+----
 
 == Style/RedundantSort
 
@@ -7867,7 +8646,7 @@ end
 
 | Enabled
 | Yes
-| Yes
+| Yes (Unsafe)
 | 0.43
 | 0.77
 |===
@@ -7920,6 +8699,10 @@ foo && foo.nil? # method that `nil` responds to
 # Method calls that do not use `.`
 foo && foo < bar
 foo < bar if foo
+
+# When checking `foo&.empty?` in a conditional, `foo` being `nil` will actually
+# do the opposite of what the author intends.
+foo && foo.empty?
 
 # This could start returning `nil` as well as the return of the method
 foo.nil? || foo.bar
@@ -8255,6 +9038,42 @@ explicit_receiver.raise
 
 * https://rubystyle.guide#prefer-raise-over-fail
 
+== Style/SingleArgumentDig
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| No
+| Yes (Unsafe)
+| 0.89
+| -
+|===
+
+Sometimes using dig method ends up with just a single
+argument. In such cases, dig should be replaced with [].
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+{ key: 'value' }.dig(:key)
+[1, 2, 3].dig(0)
+
+# good
+{ key: 'value' }[:key]
+[1, 2, 3][0]
+
+# good
+{ key1: { key2: 'value' } }.dig(:key1, :key2)
+[1, [2, [3]]].dig(1, 1)
+
+# good
+keys = %i[key1 key2]
+{ key1: { key2: 'value' } }.dig(*keys)
+----
+
 == Style/SingleLineBlockParams
 
 |===
@@ -8395,6 +9214,69 @@ items[1..-1]
 # good
 items[1..]
 ----
+
+== Style/SoleNestedConditional
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| Yes
+| No
+| 0.89
+| -
+|===
+
+If the branch of a conditional consists solely of a conditional node,
+its conditions can be combined with the conditions of the outer branch.
+This helps to keep the nesting level from getting too deep.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+if condition_a
+  if condition_b
+    do_something
+  end
+end
+
+# good
+if condition_a && condition_b
+  do_something
+end
+----
+
+==== AllowModifier: false (default)
+
+[source,ruby]
+----
+# bad
+if condition_a
+  do_something if condition_b
+end
+----
+
+==== AllowModifier: true
+
+[source,ruby]
+----
+# good
+if condition_a
+  do_something if condition_b
+end
+----
+
+=== Configurable attributes
+
+|===
+| Name | Default value | Configurable values
+
+| AllowModifier
+| `false`
+| Boolean
+|===
 
 == Style/SpecialGlobalVars
 
@@ -8567,6 +9449,42 @@ warn('hello')
 === References
 
 * https://rubystyle.guide#warn
+
+== Style/StringConcatenation
+
+|===
+| Enabled by default | Safe | Supports autocorrection | VersionAdded | VersionChanged
+
+| Pending
+| No
+| Yes (Unsafe)
+| 0.89
+| -
+|===
+
+This cop checks for places where string concatenation
+can be replaced with string interpolation.
+
+The cop can autocorrect simple cases but will skip autocorrecting
+more complex cases where the resulting code would be harder to read.
+In those cases, it might be useful to extract statements to local
+variables or methods which you can then interpolate in a string.
+
+=== Examples
+
+[source,ruby]
+----
+# bad
+email_with_name = user.name + ' <' + user.email + '>'
+
+# good
+email_with_name = "#{user.name} <#{user.email}>"
+email_with_name = format('%s <%s>', user.name, user.email)
+----
+
+=== References
+
+* https://rubystyle.guide#string-interpolation
 
 == Style/StringHashKeys
 

@@ -73,25 +73,37 @@ module RuboCop
     #   expect_no_corrections
     #
     # If your code has variables of different lengths, you can use `%{foo}`,
-    # `^{foo}`, and `_{foo}` to format your template:
+    # `^{foo}`, and `_{foo}` to format your template; you can also abbreviate
+    # offense messages with `[...]`:
     #
     #   %w[raise fail].each do |keyword|
     #     expect_offense(<<~RUBY, keyword: keyword)
     #       %{keyword}(RuntimeError, msg)
-    #       ^{keyword}^^^^^^^^^^^^^^^^^^^ Redundant `RuntimeError` argument can be removed.
+    #       ^{keyword}^^^^^^^^^^^^^^^^^^^ Redundant `RuntimeError` argument [...]
     #     RUBY
     #
     #   %w[has_one has_many].each do |type|
     #     expect_offense(<<~RUBY, type: type)
     #       class Book
     #         %{type} :chapter, foreign_key: 'book_id'
-    #         _{type}           ^^^^^^^^^^^^^^^^^^^^^^ Specifying the default value is redundant.
+    #         _{type}           ^^^^^^^^^^^^^^^^^^^^^^ Specifying the default [...]
     #       end
     #     RUBY
     #   end
+    #
+    # If you need to specify an offense on a blank line, use the empty `^{}` marker:
+    #
+    # @example `^{}` empty line offense
+    #
+    #   expect_offense(<<~RUBY)
+    #
+    #     ^{} Missing frozen string literal comment.
+    #     puts 1
+    #   RUBY
     module ExpectOffense
       def format_offense(source, **replacements)
         replacements.each do |keyword, value|
+          value = value.to_s
           source = source.gsub("%{#{keyword}}", value)
                          .gsub("^{#{keyword}}", '^' * value.size)
                          .gsub("_{#{keyword}}", ' ' * value.size)
@@ -116,14 +128,19 @@ module RuboCop
         @processed_source = parse_source(expected_annotations.plain_source,
                                          file)
 
-        raise 'Error parsing example code' unless @processed_source.valid_syntax?
+        unless @processed_source.valid_syntax?
+          raise 'Error parsing example code: ' \
+            "#{@processed_source.diagnostics.map(&:render).join("\n")}"
+        end
 
-        offenses = _investigate(cop, @processed_source)
+        @offenses = _investigate(cop, @processed_source)
         actual_annotations =
-          expected_annotations.with_offense_annotations(offenses)
+          expected_annotations.with_offense_annotations(@offenses)
 
-        expect(actual_annotations.to_s).to eq(expected_annotations.to_s)
-        expect(offenses.map(&:severity).uniq).to eq([severity]) if severity
+        expect(actual_annotations).to eq(expected_annotations), ''
+        expect(@offenses.map(&:severity).uniq).to eq([severity]) if severity
+
+        @offenses
       end
 
       def expect_correction(correction, loop: true)
@@ -140,7 +157,7 @@ module RuboCop
           break corrected_source if corrected_source == @processed_source.buffer.source
 
           if iteration > RuboCop::Runner::MAX_ITERATIONS
-            raise RuboCop::Runner::InfiniteCorrectionLoop.new(@processed_source.path, [])
+            raise RuboCop::Runner::InfiniteCorrectionLoop.new(@processed_source.path, [@offenses])
           end
 
           # Prepare for next loop
@@ -177,7 +194,8 @@ module RuboCop
 
       # Parsed representation of code annotated with the `^^^ Message` style
       class AnnotatedSource
-        ANNOTATION_PATTERN = /\A\s*\^+ /.freeze
+        ANNOTATION_PATTERN = /\A\s*(\^+|\^{}) /.freeze
+        ABBREV = "[...]\n"
 
         # @param annotated_source [String] string passed to the matchers
         #
@@ -196,6 +214,7 @@ module RuboCop
               source << source_line
             end
           end
+          annotations.each { |a| a[0] = 1 } if source.empty?
 
           new(source, annotations)
         end
@@ -209,6 +228,27 @@ module RuboCop
         def initialize(lines, annotations)
           @lines       = lines.freeze
           @annotations = annotations.sort.freeze
+        end
+
+        def ==(other)
+          other.is_a?(self.class) &&
+            other.lines == lines &&
+            match_annotations?(other)
+        end
+
+        # Dirty hack: expectations with [...] are rewritten when they match
+        # This way the diff is clean.
+        def match_annotations?(other)
+          annotations.zip(other.annotations) do |(_actual_line, actual_annotation),
+                                                 (_expected_line, expected_annotation)|
+            if expected_annotation&.end_with?(ABBREV) &&
+               actual_annotation.start_with?(expected_annotation[0...-ABBREV.length])
+
+              expected_annotation.replace(actual_annotation)
+            end
+          end
+
+          annotations == other.annotations
         end
 
         # Construct annotated source string (like what we parse)
@@ -243,6 +283,7 @@ module RuboCop
 
           reconstructed.join
         end
+        alias inspect to_s
 
         # Return the plain source code without annotations
         #
@@ -261,6 +302,7 @@ module RuboCop
             offenses.map do |offense|
               indent     = ' ' * offense.column
               carets     = '^' * offense.column_length
+              carets     = '^{}' if offense.column_length.zero?
 
               [offense.line, "#{indent}#{carets} #{offense.message}\n"]
             end
@@ -268,7 +310,7 @@ module RuboCop
           self.class.new(lines, offense_annotations)
         end
 
-        private
+        protected
 
         attr_reader :lines, :annotations
       end

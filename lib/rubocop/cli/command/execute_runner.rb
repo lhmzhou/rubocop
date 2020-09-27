@@ -4,8 +4,12 @@ module RuboCop
   class CLI
     module Command
       # Run all the selected cops and report the result.
+      # @api private
       class ExecuteRunner < Base
         include Formatter::TextUtil
+
+        # Combination of short and long formatter names.
+        INTEGRATION_FORMATTERS = %w[h html j json ju junit].freeze
 
         self.command_name = :execute_runner
 
@@ -55,11 +59,16 @@ module RuboCop
             #{Gem.loaded_specs['rubocop'].metadata['bug_tracker_uri']}
 
             Mention the following information in the issue report:
-            #{RuboCop::Version.version(true)}
+            #{RuboCop::Version.version(debug: true)}
           WARNING
         end
 
         def maybe_print_corrected_source
+          # Integration tools (like RubyMine) expect to have only the JSON result
+          # when specifying JSON format. Similar HTML and JUnit are targeted as well.
+          # See: https://github.com/rubocop-hq/rubocop/issues/8673
+          return if INTEGRATION_FORMATTERS.include?(@options[:format])
+
           # If we are asked to autocorrect source code read from stdin, the only
           # reasonable place to write it is to stdout
           # Unfortunately, we also write other information to stdout

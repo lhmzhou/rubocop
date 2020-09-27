@@ -33,6 +33,10 @@ module RuboCop
       for_dir(File.dirname(file))
     end
 
+    def for_pwd
+      for_dir(Dir.pwd)
+    end
+
     # If type (file/dir) is known beforehand,
     # prefer using #for_file or #for_dir for improved performance
     def for(file_or_dir)
@@ -50,9 +54,9 @@ module RuboCop
       @path_cache[dir] ||= ConfigLoader.configuration_file_for(dir)
       path = @path_cache[dir]
       @object_cache[path] ||= begin
-                                print "For #{dir}: " if ConfigLoader.debug?
-                                ConfigLoader.configuration_from_file(path)
-                              end
+        print "For #{dir}: " if ConfigLoader.debug?
+        ConfigLoader.configuration_from_file(path)
+      end
     end
   end
 end

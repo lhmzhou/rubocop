@@ -12,15 +12,10 @@ module RuboCop
   # Use global Rake namespace here to avoid namespace issues with custom
   # rubocop-rake tasks
   class RakeTask < ::Rake::TaskLib
-    attr_accessor :name
-    attr_accessor :verbose
-    attr_accessor :fail_on_error
-    attr_accessor :patterns
-    attr_accessor :formatters
-    attr_accessor :requires
-    attr_accessor :options
+    attr_accessor :name, :verbose, :fail_on_error, :patterns, :formatters, :requires, :options
 
     def initialize(name = :rubocop, *args, &task_block)
+      super()
       setup_ivars(name)
 
       desc 'Run RuboCop' unless ::Rake.application.last_description

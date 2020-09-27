@@ -34,32 +34,38 @@ module RuboCop
       #   foo = "1"
       #   # rubocop:enable all
       #   baz
-      class RedundantCopEnableDirective < Cop
+      class RedundantCopEnableDirective < Base
         include RangeHelp
         include SurroundingSpace
+        extend AutoCorrector
 
         MSG = 'Unnecessary enabling of %<cop>s.'
 
-        def investigate(processed_source)
+        def on_new_investigation
           return if processed_source.blank?
 
           offenses = processed_source.comment_config.extra_enabled_comments
-          offenses.each do |comment, name|
-            add_offense(
-              [comment, name],
-              location: range_of_offense(comment, name),
-              message: format(MSG, cop: all_or_name(name))
-            )
-          end
-        end
-
-        def autocorrect(comment_and_name)
-          lambda do |corrector|
-            corrector.remove(range_with_comma(*comment_and_name))
-          end
+          offenses.each { |comment, cop_names| register_offense(comment, cop_names) }
         end
 
         private
+
+        def register_offense(comment, cop_names)
+          directive = DirectiveComment.new(comment)
+
+          cop_names.each do |name|
+            add_offense(
+              range_of_offense(comment, name),
+              message: format(MSG, cop: all_or_name(name))
+            ) do |corrector|
+              if directive.match?(cop_names)
+                corrector.remove(range_with_surrounding_space(range: directive.range, side: :right))
+              else
+                corrector.remove(range_with_comma(comment, name))
+              end
+            end
+          end
+        end
 
         def range_of_offense(comment, name)
           start_pos = comment_start(comment) + cop_name_indention(comment, name)

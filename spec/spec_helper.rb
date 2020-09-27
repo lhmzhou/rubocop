@@ -52,7 +52,7 @@ RSpec.configure do |config|
     config.filter_run_excluding broken_on: :ruby_head
   end
 
-  config.after do
-    RuboCop::PathUtil.reset_pwd
+  if %w[jruby-9.2-ascii_spec jruby-9.2-spec].include? ENV['CIRCLE_STAGE']
+    config.filter_run_excluding broken_on: :jruby
   end
 end

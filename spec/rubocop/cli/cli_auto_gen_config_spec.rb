@@ -199,7 +199,7 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
             == example.rb ==
             C:  2: 91: Layout/LineLength: Line is too long. [99/90]
 
-            1 file inspected, 1 offense detected
+            1 file inspected, 1 offense detected, 1 offense auto-correctable
           OUTPUT
         end
       end
@@ -441,6 +441,47 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
       end
     end
 
+    context 'when working with a cop who do not support auto-correction' do
+      it 'can generate a todo list' do
+        create_file('example1.rb', <<~RUBY)
+          def fooBar; end
+        RUBY
+        create_file('.rubocop.yml', <<~YAML)
+          # The following cop does not support auto-correction.
+          Naming/MethodName:
+            Enabled: true
+        YAML
+        expect(cli.run(%w[--auto-gen-config])).to eq(0)
+        expect($stderr.string).to eq('')
+        # expect($stdout.string).to include('Created .rubocop_todo.yml.')
+        expect(Dir['.*']).to include('.rubocop_todo.yml')
+        todo_contents = IO.read('.rubocop_todo.yml').lines[8..-1].join
+        expect(todo_contents).to eq(<<~YAML)
+          # Offense count: 1
+          # Configuration parameters: EnforcedStyle, IgnoredPatterns.
+          # SupportedStyles: snake_case, camelCase
+          Naming/MethodName:
+            Exclude:
+              - 'example1.rb'
+
+          # Offense count: 1
+          # Cop supports --auto-correct.
+          # Configuration parameters: EnforcedStyle.
+          # SupportedStyles: always, always_true, never
+          Style/FrozenStringLiteralComment:
+            Exclude:
+              - 'example1.rb'
+        YAML
+        expect(IO.read('.rubocop.yml')).to eq(<<~YAML)
+          inherit_from: .rubocop_todo.yml
+
+          # The following cop does not support auto-correction.
+          Naming/MethodName:
+            Enabled: true
+        YAML
+      end
+    end
+
     context 'when working in a subdirectory' do
       it 'can generate a todo list' do
         create_file('dir/example1.rb', ['$x = 0 ',
@@ -456,7 +497,7 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
           Layout/LineLength:
             Max: 95
         YAML
-        RuboCop::PathUtil.chdir('dir') do
+        Dir.chdir('dir') do
           expect(cli.run(%w[--auto-gen-config])).to eq(0)
         end
         expect($stderr.string).to eq('')
@@ -1070,7 +1111,7 @@ RSpec.describe RuboCop::CLI, :isolated_environment do
           Inspecting 1 file
           C
 
-          1 file inspected, 1 offense detected
+          1 file inspected, 1 offense detected, 1 offense auto-correctable
           Created .rubocop_todo.yml.
         OUTPUT
       end

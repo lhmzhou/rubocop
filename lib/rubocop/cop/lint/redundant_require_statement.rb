@@ -21,10 +21,12 @@ module RuboCop
       #
       #   # good
       #   require 'unloaded_feature'
-      class RedundantRequireStatement < Cop
+      class RedundantRequireStatement < Base
         include RangeHelp
+        extend AutoCorrector
 
         MSG = 'Remove unnecessary `require` statement.'
+        RESTRICT_ON_SEND = %i[require].freeze
 
         def_node_matcher :unnecessary_require_statement?, <<~PATTERN
           (send nil? :require
@@ -34,13 +36,9 @@ module RuboCop
         def on_send(node)
           return unless unnecessary_require_statement?(node)
 
-          add_offense(node)
-        end
+          add_offense(node) do |corrector|
+            range = range_with_surrounding_space(range: node.loc.expression, side: :right)
 
-        def autocorrect(node)
-          lambda do |corrector|
-            range = range_with_surrounding_space(range: node.loc.expression,
-                                                 side: :right)
             corrector.remove(range)
           end
         end

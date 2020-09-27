@@ -24,7 +24,7 @@ module RuboCop
 
       attr_accessor :debug, :ignore_parent_exclusion,
                     :disable_pending_cops, :enable_pending_cops
-      attr_writer :default_configuration
+      attr_writer :default_configuration, :project_root
 
       alias debug? debug
       alias ignore_parent_exclusion? ignore_parent_exclusion
@@ -34,7 +34,7 @@ module RuboCop
         FileFinder.root_level = nil
       end
 
-      def load_file(file) # rubocop:disable Metrics/AbcSize
+      def load_file(file)
         path = File.absolute_path(file.is_a?(RemoteConfig) ? file.file : file)
 
         hash = load_yaml_configuration(path)
@@ -73,7 +73,7 @@ module RuboCop
         # `can't add a new key into hash during iteration` error
         hash_keys = hash.keys
         hash_keys.each do |key|
-          q = Cop::Cop.qualified_cop_name(key, path)
+          q = Cop::Registry.qualified_cop_name(key, path)
           next if q == key
 
           hash[q] = hash.delete(key)
@@ -118,38 +118,53 @@ module RuboCop
       end
 
       def add_excludes_from_files(config, config_file)
-        found_files = find_files_upwards(DOTFILE, config_file) +
-                      [find_user_dotfile, find_user_xdg_config].compact
+        exclusion_file = find_last_file_upwards(DOTFILE, config_file, project_root)
 
-        return if found_files.empty?
-        return if PathUtil.relative_path(found_files.last) ==
-                  PathUtil.relative_path(config_file)
+        return unless exclusion_file
+        return if PathUtil.relative_path(exclusion_file) == PathUtil.relative_path(config_file)
 
         print 'AllCops/Exclude ' if debug?
-        config.add_excludes_from_higher_level(load_file(found_files.last))
+        config.add_excludes_from_higher_level(load_file(exclusion_file))
       end
 
       def default_configuration
         @default_configuration ||= begin
-                                     print 'Default ' if debug?
-                                     load_file(DEFAULT_FILE)
-                                   end
+          print 'Default ' if debug?
+          load_file(DEFAULT_FILE)
+        end
       end
+
+      # Returns the path rubocop inferred as the root of the project. No file
+      # searches will go past this directory.
+      def project_root
+        @project_root ||= find_project_root
+      end
+
+      PENDING_BANNER = <<~BANNER
+        The following cops were added to RuboCop, but are not configured. Please set Enabled to either `true` or `false` in your `.rubocop.yml` file.
+
+        Please also note that can also opt-in to new cops by default by adding this to your config:
+          AllCops:
+            NewCops: enable
+      BANNER
 
       def warn_on_pending_cops(pending_cops)
         return if pending_cops.empty?
 
-        warn Rainbow('The following cops were added to RuboCop, but are not ' \
-                     'configured. Please set Enabled to either `true` or ' \
-                     '`false` in your `.rubocop.yml` file:').yellow
+        warn Rainbow(PENDING_BANNER).yellow
 
         pending_cops.each do |cop|
-          version = cop.metadata['VersionAdded'] || 'N/A'
-
-          warn Rainbow(" - #{cop.name} (#{version})").yellow
+          warn_pending_cop cop
         end
 
         warn Rainbow('For more information: https://docs.rubocop.org/rubocop/versioning.html').yellow
+      end
+
+      def warn_pending_cop(cop)
+        version = cop.metadata['VersionAdded'] || 'N/A'
+
+        warn Rainbow("#{cop.name}: # (new in #{version})").yellow
+        warn Rainbow('  Enabled: true').yellow
       end
 
       # Merges the given configuration with the default one.
@@ -160,7 +175,15 @@ module RuboCop
       private
 
       def find_project_dotfile(target_dir)
-        find_file_upwards(DOTFILE, target_dir)
+        find_file_upwards(DOTFILE, target_dir, project_root)
+      end
+
+      def find_project_root
+        pwd = Dir.pwd
+        gems_file = find_last_file_upwards('Gemfile', pwd) || find_last_file_upwards('gems.rb', pwd)
+        return unless gems_file
+
+        File.dirname(gems_file)
       end
 
       def find_user_dotfile

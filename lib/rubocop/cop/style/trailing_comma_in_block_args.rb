@@ -40,20 +40,21 @@ module RuboCop
       #   add do
       #     foo + bar
       #   end
-      class TrailingCommaInBlockArgs < Cop
+      class TrailingCommaInBlockArgs < Base
+        extend AutoCorrector
+
         MSG = 'Useless trailing comma present in block arguments.'
 
         def on_block(node)
           # lambda literal (`->`) never has block arguments.
           return if node.send_node.lambda_literal?
-
           return unless useless_trailing_comma?(node)
 
-          add_offense(node, location: last_comma(node).pos)
-        end
+          last_comma_pos = last_comma(node).pos
 
-        def autocorrect(node)
-          ->(corrector) { corrector.replace(last_comma(node).pos, '') }
+          add_offense(last_comma_pos) do |corrector|
+            corrector.replace(last_comma_pos, '')
+          end
         end
 
         private
@@ -75,12 +76,13 @@ module RuboCop
         end
 
         def argument_tokens(node)
-          pipes = tokens(node).select { |token| token.type == :tPIPE }
+          tokens = processed_source.tokens_within(node)
+          pipes = tokens.select { |token| token.type == :tPIPE }
           begin_pos, end_pos = pipes.map do |pipe|
-            tokens(node).index(pipe)
+            tokens.index(pipe)
           end
 
-          tokens(node)[begin_pos + 1..end_pos - 1]
+          tokens[begin_pos + 1..end_pos - 1]
         end
       end
     end

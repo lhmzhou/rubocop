@@ -32,13 +32,14 @@ module RuboCop
       #
       #   # good
       #   /[+\-]\d/
-      class RedundantRegexpEscape < Cop
+      class RedundantRegexpEscape < Base
         include RangeHelp
         include RegexpLiteralHelp
+        extend AutoCorrector
 
         MSG_REDUNDANT_ESCAPE = 'Redundant escape inside regexp literal'
 
-        ALLOWED_ALWAYS_ESCAPES = ' []^\\#'.chars.freeze
+        ALLOWED_ALWAYS_ESCAPES = " \n[]^\\#".chars.freeze
         ALLOWED_WITHIN_CHAR_CLASS_METACHAR_ESCAPES = '-'.chars.freeze
         ALLOWED_OUTSIDE_CHAR_CLASS_METACHAR_ESCAPES = '.*+?{}()|$'.chars.freeze
 
@@ -46,19 +47,9 @@ module RuboCop
           each_escape(node) do |char, index, within_character_class|
             next if allowed_escape?(node, char, within_character_class)
 
-            add_offense(
-              node,
-              location: escape_range_at_index(node, index),
-              message: MSG_REDUNDANT_ESCAPE
-            )
-          end
-        end
+            location = escape_range_at_index(node, index)
 
-        def autocorrect(node)
-          lambda do |corrector|
-            each_escape(node) do |char, index, within_character_class|
-              next if allowed_escape?(node, char, within_character_class)
-
+            add_offense(location, message: MSG_REDUNDANT_ESCAPE) do |corrector|
               corrector.remove_leading(escape_range_at_index(node, index), 1)
             end
           end
@@ -83,8 +74,8 @@ module RuboCop
 
         def delimiter?(node, char)
           delimiters = [
-            node.loc.begin.source.chars.last,
-            node.loc.end.source.chars.first
+            node.loc.begin.source[-1],
+            node.loc.end.source[0]
           ]
 
           delimiters.include?(char)
@@ -92,18 +83,18 @@ module RuboCop
 
         def each_escape(node)
           pattern_source(node).each_char.with_index.reduce(
-            [nil, false]
-          ) do |(previous, within_character_class), (current, index)|
+            [nil, 0]
+          ) do |(previous, char_class_depth), (current, index)|
             if previous == '\\'
-              yield [current, index - 1, within_character_class]
+              yield [current, index - 1, !char_class_depth.zero?]
 
-              [nil, within_character_class]
-            elsif previous == '[' && current != ':'
-              [current, true]
-            elsif previous != ':' && current == ']'
-              [current, false]
+              [nil, char_class_depth]
+            elsif previous == '['
+              [current, char_class_depth + 1]
+            elsif current == ']'
+              [current, char_class_depth - 1]
             else
-              [current, within_character_class]
+              [current, char_class_depth]
             end
           end
         end

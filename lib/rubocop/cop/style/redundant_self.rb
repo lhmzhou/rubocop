@@ -41,7 +41,9 @@ module RuboCop
       #       self.bar == bar  # Resolves name clash with argument of the block.
       #     end
       #   end
-      class RedundantSelf < Cop
+      class RedundantSelf < Base
+        extend AutoCorrector
+
         MSG = 'Redundant `self` detected.'
         KERNEL_METHODS = Kernel.methods(false)
         KEYWORDS = %i[alias and begin break case class def defined? do
@@ -57,7 +59,7 @@ module RuboCop
         def initialize(config = nil, options = nil)
           super
           @allowed_send_nodes = []
-          @local_variables_scopes = Hash.new { |hash, key| hash[key] = [] }
+          @local_variables_scopes = Hash.new { |hash, key| hash[key] = [] }.compare_by_identity
         end
 
         # Assignment of self.x
@@ -106,24 +108,20 @@ module RuboCop
 
           return if allowed_send_node?(node)
 
-          add_offense(node)
+          add_offense(node) do |corrector|
+            corrector.remove(node.receiver)
+            corrector.remove(node.loc.dot)
+          end
         end
 
         def on_block(node)
           add_scope(node, @local_variables_scopes[node])
         end
 
-        def autocorrect(node)
-          lambda do |corrector|
-            corrector.remove(node.receiver)
-            corrector.remove(node.loc.dot)
-          end
-        end
-
         private
 
         def add_scope(node, local_variables = [])
-          node.descendants.each do |child_node|
+          node.each_descendant do |child_node|
             @local_variables_scopes[child_node] = local_variables
           end
         end

@@ -16,6 +16,18 @@ RSpec.describe RuboCop::Cop::Style::RedundantRegexpEscape do
       end
     end
 
+    context 'with a line continuation' do
+      it 'does not register an offense' do
+        expect_no_offenses("foo = /a\\\nb/")
+      end
+    end
+
+    context 'with a line continuation within a character class' do
+      it 'does not register an offense' do
+        expect_no_offenses("foo = /[a\\\nb]/")
+      end
+    end
+
     [
       ('a'..'z').to_a - %w[c n p u x],
       ('A'..'Z').to_a - %w[C M P],
@@ -67,6 +79,19 @@ RSpec.describe RuboCop::Cop::Style::RedundantRegexpEscape do
       end
     end
 
+    context 'with an escaped . inside a character class beginning with :' do
+      it 'registers an offense and corrects' do
+        expect_offense(<<~'RUBY')
+          foo = /[:\.]/
+                   ^^ Redundant escape inside regexp literal
+        RUBY
+
+        expect_correction(<<~'RUBY')
+          foo = /[:.]/
+        RUBY
+      end
+    end
+
     context 'with an escaped character class and following escaped char' do
       it 'does not register an offense' do
         expect_no_offenses('foo = /\[\+/')
@@ -79,9 +104,41 @@ RSpec.describe RuboCop::Cop::Style::RedundantRegexpEscape do
       end
     end
 
-    context 'with a POSIX character class inside a character class' do
+    context 'with a nested character class then allowed escape' do
+      it 'does not register an offense' do
+        expect_no_offenses('foo = /[a-w&&[^c-g]\-]/')
+      end
+    end
+
+    context 'with a nested character class containing redundant escape' do
+      it 'registers an offense and corrects' do
+        expect_offense(<<~'RUBY')
+          foo = /[[:punct:]&&[^\.]]/
+                               ^^ Redundant escape inside regexp literal
+        RUBY
+
+        expect_correction(<<~'RUBY')
+          foo = /[[:punct:]&&[^.]]/
+        RUBY
+      end
+    end
+
+    context 'with a POSIX character class then allowed escape inside a character class' do
       it 'does not register an offense' do
         expect_no_offenses('foo = /[[:alnum:]\-_]+/')
+      end
+    end
+
+    context 'with a POSIX character class then disallowed escape inside a character class' do
+      it 'registers an offense and corrects' do
+        expect_offense(<<~'RUBY')
+          foo = /[[:alnum:]\.]/
+                           ^^ Redundant escape inside regexp literal
+        RUBY
+
+        expect_correction(<<~'RUBY')
+          foo = /[[:alnum:].]/
+        RUBY
       end
     end
 
@@ -231,6 +288,9 @@ RSpec.describe RuboCop::Cop::Style::RedundantRegexpEscape do
           expect_no_offenses("foo = /\\#{char}/")
         end
       end
+
+      # Avoid an empty character class
+      next if char == "\n"
 
       context "with an escaped '#{char}' inside a character class" do
         it 'does not register an offense' do

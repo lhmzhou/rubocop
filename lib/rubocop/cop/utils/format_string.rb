@@ -41,8 +41,7 @@ module RuboCop
         #
         # @see https://ruby-doc.org/core-2.6.3/Kernel.html#method-i-format
         class FormatSequence
-          attr_reader :begin_pos, :end_pos
-          attr_reader :flags, :width, :precision, :name, :type
+          attr_reader :begin_pos, :end_pos, :flags, :width, :precision, :name, :type
 
           def initialize(match)
             @source = match[0]
@@ -112,11 +111,9 @@ module RuboCop
         private
 
         def parse
-          @source.to_enum(:scan, SEQUENCE).map do
-            FormatSequence.new(
-              Regexp.last_match
-            )
-          end
+          matches = []
+          @source.scan(SEQUENCE) { matches << FormatSequence.new(Regexp.last_match) }
+          matches
         end
 
         def mixed_formats?

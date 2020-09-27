@@ -11,7 +11,11 @@ RSpec.describe RuboCop::ConfigLoader do
     described_class.default_configuration = nil
   end
 
-  after { described_class.debug = false }
+  after do
+    described_class.debug = false
+    # Remove custom configuration
+    described_class.default_configuration = nil
+  end
 
   let(:default_config) { described_class.default_configuration }
 
@@ -79,6 +83,26 @@ RSpec.describe RuboCop::ConfigLoader do
         it 'falls back to the provided default file' do
           expect(configuration_file_for).to end_with('config/default.yml')
         end
+      end
+    end
+
+    context 'when there is a spurious rubocop config outside of the project', root: 'dir' do
+      let(:dir_path) { 'dir' }
+
+      before do
+        # Force reload of project root
+        described_class.project_root = nil
+        create_empty_file('Gemfile')
+        create_empty_file('../.rubocop.yml')
+      end
+
+      after do
+        # Don't leak project root change
+        described_class.project_root = nil
+      end
+
+      it 'ignores the spurious config and falls back to the provided default file if run from the project' do
+        expect(configuration_file_for).to end_with('config/default.yml')
       end
     end
 
@@ -152,6 +176,77 @@ RSpec.describe RuboCop::ConfigLoader do
       it 'gets AllCops/Exclude from the highest directory level' do
         excludes = configuration_from_file['AllCops']['Exclude']
         expect(excludes).to eq([File.expand_path('vendor/**')])
+      end
+
+      context 'and there is a personal config file in the home folder' do
+        before do
+          create_file('~/.rubocop.yml', <<~YAML)
+            AllCops:
+              Exclude:
+                - tmp/**
+          YAML
+        end
+
+        it 'ignores personal AllCops/Exclude' do
+          excludes = configuration_from_file['AllCops']['Exclude']
+          expect(excludes).to eq([File.expand_path('vendor/**')])
+        end
+      end
+    end
+
+    context 'when configuration has a custom name' do
+      let(:file_path) { '.custom_rubocop.yml' }
+
+      before do
+        create_file(file_path, <<~YAML)
+          AllCops:
+            Exclude:
+              - vendor/**
+        YAML
+      end
+
+      context 'and there is a personal config file in the home folder' do
+        before do
+          create_file('~/.rubocop.yml', <<~YAML)
+            AllCops:
+              Exclude:
+                - tmp/**
+          YAML
+        end
+
+        it 'ignores personal AllCops/Exclude' do
+          excludes = configuration_from_file['AllCops']['Exclude']
+          expect(excludes).to eq([File.expand_path('vendor/**')])
+        end
+      end
+    end
+
+    context 'when project has a Gemfile', :project_inside_home do
+      let(:file_path) { '.rubocop.yml' }
+
+      before do
+        create_empty_file('Gemfile')
+
+        create_file(file_path, <<~YAML)
+          AllCops:
+            Exclude:
+              - vendor/**
+        YAML
+      end
+
+      context 'and there is a personal config file in the home folder' do
+        before do
+          create_file('~/.rubocop.yml', <<~YAML)
+            AllCops:
+              Exclude:
+                - tmp/**
+          YAML
+        end
+
+        it 'ignores personal AllCops/Exclude' do
+          excludes = configuration_from_file['AllCops']['Exclude']
+          expect(excludes).to eq([File.expand_path('vendor/**')])
+        end
       end
     end
 
@@ -526,11 +621,7 @@ RSpec.describe RuboCop::ConfigLoader do
       include_examples 'resolves enabled/disabled for all cops', true, false
     end
 
-    context 'when a third party require defines a new gem' do
-      around do |example|
-        RuboCop::Cop::Registry.with_temporary_global { example.run }
-      end
-
+    context 'when a third party require defines a new gem', :restore_registry do
       context 'when the gem is not loaded' do
         before do
           create_file('.rubocop.yml', <<~YAML)
@@ -641,6 +732,7 @@ RSpec.describe RuboCop::ConfigLoader do
               default_config['Metrics/MethodLength']['VersionChanged'],
               'CountComments' => false,
               'Max' => 5,
+              'CountAsOne' => [],
               'ExcludedMethods' => []
             }
           )
@@ -860,6 +952,8 @@ RSpec.describe RuboCop::ConfigLoader do
 
       context 'and the gem is bundled' do
         before do
+          require 'bundler'
+
           specs = {
             'gemone' => [OpenStruct.new(full_gem_path: File.join(gem_root, 'gemone'))],
             'gemtwo' => [OpenStruct.new(full_gem_path: File.join(gem_root, 'gemtwo'))]
@@ -949,7 +1043,7 @@ RSpec.describe RuboCop::ConfigLoader do
     end
 
     context 'when a file inherits from a url inheriting from another file' do
-      let(:file_path) { '.robocop.yml' }
+      let(:file_path) { '.rubocop.yml' }
       let(:cache_file) { '.rubocop-http---example-com-rubocop-yml' }
       let(:cache_file_2) { '.rubocop-http---example-com-inherit-yml' }
 
@@ -1420,7 +1514,7 @@ RSpec.describe RuboCop::ConfigLoader do
 
     it 'uses paths relative to the .rubocop.yml, not cwd' do
       config_path = described_class.configuration_file_for('.')
-      RuboCop::PathUtil.chdir '..' do
+      Dir.chdir '..' do
         described_class.configuration_from_file(config_path)
         expect(defined?(MyClass)).to be_truthy
       end
@@ -1432,13 +1526,13 @@ RSpec.describe RuboCop::ConfigLoader do
 
     before do
       create_file('.rubocop.yml', ['require:', "  - #{required_file_path}"])
-      create_file(required_file_path + '.rb', ['class MyClass', 'end'])
+      create_file("#{required_file_path}.rb", ['class MyClass', 'end'])
     end
 
     it 'works without a starting .' do
       config_path = described_class.configuration_file_for('.')
       $LOAD_PATH.unshift(File.dirname(config_path))
-      RuboCop::PathUtil.chdir '..' do
+      Dir.chdir '..' do
         described_class.configuration_from_file(config_path)
         expect(defined?(MyClass)).to be_truthy
       end

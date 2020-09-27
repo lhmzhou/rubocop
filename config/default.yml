@@ -117,6 +117,8 @@ AllCops:
   # CacheRootDirectory is ~ (nil), which it is by default, the root will be
   # taken from the environment variable `$XDG_CACHE_HOME` if it is set, or if
   # `$XDG_CACHE_HOME` is not set, it will be `$HOME/.cache/`.
+  # The CacheRootDirectory can be overwritten by passing the `--cache-root` command
+  # line option or by setting `$RUBOCOP_CACHE_ROOT` environment variable.
   CacheRootDirectory: ~
   # It is possible for a malicious user to know the location of RuboCop's cache
   # directory by looking at CacheRootDirectory, and create a symlink in its
@@ -210,9 +212,10 @@ Gemspec/OrderedDependencies:
     - '**/*.gemspec'
 
 Gemspec/RequiredRubyVersion:
-  Description: 'Checks that `required_ruby_version` of gemspec and `TargetRubyVersion` of .rubocop.yml are equal.'
+  Description: 'Checks that `required_ruby_version` of gemspec is specified and equal to `TargetRubyVersion` of .rubocop.yml.'
   Enabled: true
   VersionAdded: '0.52'
+  VersionChanged: '0.89'
   Include:
     - '**/*.gemspec'
 
@@ -308,6 +311,19 @@ Layout/AssignmentIndentation:
   # But it can be overridden by setting this parameter
   IndentationWidth: ~
 
+Layout/BeginEndAlignment:
+  Description: 'Align ends corresponding to begins correctly.'
+  Enabled: pending
+  VersionAdded: '0.91'
+  # The value `start_of_line` means that `end` should be aligned the start of the line
+  # where the `begin` keyword is.
+  # The value `begin` means that `end` should be aligned with the `begin` keyword.
+  EnforcedStyleAlignWith: start_of_line
+  SupportedStylesAlignWith:
+    - start_of_line
+    - begin
+  Severity: warning
+
 Layout/BlockAlignment:
   Description: 'Align block ends correctly.'
   Enabled: true
@@ -398,7 +414,6 @@ Layout/DefEndAlignment:
   SupportedStylesAlignWith:
     - start_of_line
     - def
-  AutoCorrect: false
   Severity: warning
 
 Layout/DotPosition:
@@ -434,6 +449,14 @@ Layout/EmptyLineAfterMagicComment:
   StyleGuide: '#separate-magic-comments-from-code'
   Enabled: true
   VersionAdded: '0.49'
+
+Layout/EmptyLineAfterMultilineCondition:
+  Description: 'Enforces empty line after multiline condition.'
+  # This is disabled, because this style is not very common in practice.
+  Enabled: false
+  VersionAdded: '0.90'
+  Reference:
+    - https://github.com/airbnb/ruby#multiline-if-newline
 
 Layout/EmptyLineBetweenDefs:
   Description: 'Use empty lines between defs.'
@@ -554,7 +577,6 @@ Layout/EndAlignment:
     - keyword
     - variable
     - start_of_line
-  AutoCorrect: false
   Severity: warning
 
 Layout/EndOfLine:
@@ -1234,7 +1256,7 @@ Layout/SpaceInsideBlockBraces:
 
 Layout/SpaceInsideHashLiteralBraces:
   Description: "Use spaces inside hash literal braces - or don't."
-  StyleGuide: '#spaces-operators'
+  StyleGuide: '#spaces-braces'
   Enabled: true
   VersionAdded: '0.49'
   EnforcedStyle: space
@@ -1355,6 +1377,12 @@ Lint/BigDecimalNew:
   Enabled: true
   VersionAdded: '0.53'
 
+Lint/BinaryOperatorWithIdenticalOperands:
+  Description: 'This cop checks for places where binary operator has identical operands.'
+  Enabled: pending
+  Safe: false
+  VersionAdded: '0.89'
+
 Lint/BooleanSymbol:
   Description: 'Check for `:true` and `:false` symbols.'
   Enabled: true
@@ -1366,6 +1394,12 @@ Lint/CircularArgumentReference:
   Description: "Default values in optional keyword arguments and optional ordinal arguments should not refer back to the name of the argument."
   Enabled: true
   VersionAdded: '0.33'
+
+Lint/ConstantDefinitionInBlock:
+  Description: 'Do not define constants within a block.'
+  StyleGuide: '#no-constant-definition-in-block'
+  Enabled: pending
+  VersionAdded: '0.91'
 
 Lint/ConstantResolution:
   Description: 'Check that constants are fully qualified with `::`.'
@@ -1397,11 +1431,17 @@ Lint/DisjunctiveAssignmentInConstructor:
   Enabled: true
   Safe: false
   VersionAdded: '0.62'
+  VersionChanged: '0.88'
 
 Lint/DuplicateCaseCondition:
   Description: 'Do not repeat values in case conditionals.'
   Enabled: true
   VersionAdded: '0.45'
+
+Lint/DuplicateElsifCondition:
+  Description: 'Do not repeat conditions used in if `elsif`.'
+  Enabled: 'pending'
+  VersionAdded: '0.88'
 
 Lint/DuplicateHashKey:
   Description: 'Check for duplicate keys in hash literals.'
@@ -1414,6 +1454,16 @@ Lint/DuplicateMethods:
   Enabled: true
   VersionAdded: '0.29'
 
+Lint/DuplicateRequire:
+  Description: 'Check for duplicate `require`s and `require_relative`s.'
+  Enabled: pending
+  VersionAdded: '0.90'
+
+Lint/DuplicateRescueException:
+  Description: 'Checks that there are no repeated exceptions used in `rescue` expressions.'
+  Enabled: pending
+  VersionAdded: '0.89'
+
 Lint/EachWithObjectArgument:
   Description: 'Check for immutable argument given to each_with_object.'
   Enabled: true
@@ -1424,17 +1474,28 @@ Lint/ElseLayout:
   Enabled: true
   VersionAdded: '0.17'
 
+Lint/EmptyConditionalBody:
+  Description: 'This cop checks for the presence of `if`, `elsif` and `unless` branches without a body.'
+  Enabled: 'pending'
+  AllowComments: true
+  VersionAdded: '0.89'
+
 Lint/EmptyEnsure:
   Description: 'Checks for empty ensure block.'
   Enabled: true
   VersionAdded: '0.10'
   VersionChanged: '0.48'
-  AutoCorrect: false
 
 Lint/EmptyExpression:
   Description: 'Checks for empty expressions.'
   Enabled: true
   VersionAdded: '0.45'
+
+Lint/EmptyFile:
+  Description: 'Enforces that Ruby source files are not empty.'
+  Enabled: pending
+  AllowComments: true
+  VersionAdded: '0.90'
 
 Lint/EmptyInterpolation:
   Description: 'Checks for empty string interpolation.'
@@ -1467,6 +1528,12 @@ Lint/FlipFlop:
   Enabled: true
   VersionAdded: '0.16'
 
+Lint/FloatComparison:
+  Description: 'Checks for the presence of precise comparison of floating point numbers.'
+  StyleGuide: '#float-comparison'
+  Enabled: pending
+  VersionAdded: '0.89'
+
 Lint/FloatOutOfRange:
   Description: >-
                  Catches floating-point literals too large or small for Ruby to
@@ -1486,6 +1553,12 @@ Lint/HeredocMethodCallPosition:
   Enabled: false
   StyleGuide: '#heredoc-method-calls'
   VersionAdded: '0.68'
+
+Lint/IdentityComparison:
+  Description: 'Prefer `equal?` over `==` when comparing `object_id`.'
+  Enabled: pending
+  StyleGuide: '#identity-comparison'
+  VersionAdded: '0.91'
 
 Lint/ImplicitStringConcatenation:
   Description: >-
@@ -1514,7 +1587,7 @@ Lint/InheritException:
 Lint/InterpolationCheck:
   Description: 'Raise warning for interpolation in single q strs.'
   Enabled: true
-  SafeAutoCorrect: false
+  Safe: false
   VersionAdded: '0.50'
   VersionChanged: '0.87'
 
@@ -1536,6 +1609,7 @@ Lint/Loop:
   StyleGuide: '#loop-with-break'
   Enabled: true
   VersionAdded: '0.9'
+  VersionChanged: '0.89'
 
 Lint/MissingCopEnableDirective:
   Description: 'Checks for a `# rubocop:enable` after `# rubocop:disable`.'
@@ -1549,6 +1623,13 @@ Lint/MissingCopEnableDirective:
   #   # rubocop:enable SomeCop
   # .inf for any size
   MaximumRangeSize: .inf
+
+Lint/MissingSuper:
+  Description: >-
+                  This cop checks for the presence of constructors and lifecycle callbacks
+                  without calls to `super`'.
+  Enabled: pending
+  VersionAdded: '0.89'
 
 Lint/MixedRegexpCaptureTypes:
   Description: 'Do not mix named captures and numbered captures in a Regexp literal.'
@@ -1601,6 +1682,12 @@ Lint/OrderedMagicComments:
   Description: 'Checks the proper ordering of magic comments and whether a magic comment is not placed before a shebang.'
   Enabled: true
   VersionAdded: '0.53'
+
+Lint/OutOfRangeRegexpRef:
+  Description: 'Checks for out of range reference for Regexp because it always returns nil.'
+  Enabled: pending
+  Safe: false
+  VersionAdded: '0.89'
 
 Lint/ParenthesesAsGroupedExpression:
   Description: >-
@@ -1724,6 +1811,7 @@ Lint/SafeNavigationChain:
     - presence
     - try
     - try!
+    - in?
 
 Lint/SafeNavigationConsistency:
   Description: >-
@@ -1751,6 +1839,11 @@ Lint/ScriptPermission:
   Enabled: true
   VersionAdded: '0.49'
   VersionChanged: '0.50'
+
+Lint/SelfAssignment:
+  Description: 'Checks for self-assignments.'
+  Enabled: pending
+  VersionAdded: '0.89'
 
 Lint/SendWithMixinArgument:
   Description: 'Checks for `send` method when using mixin.'
@@ -1802,6 +1895,16 @@ Lint/ToJSON:
   Enabled: true
   VersionAdded: '0.66'
 
+Lint/TopLevelReturnWithArgument:
+  Description: 'This cop detects top level return statements with argument.'
+  Enabled: 'pending'
+  VersionAdded: '0.89'
+
+Lint/TrailingCommaInAttributeDeclaration:
+  Description: 'This cop checks for trailing commas in attribute declarations.'
+  Enabled: pending
+  VersionAdded: '0.90'
+
 Lint/UnderscorePrefixedVariableName:
   Description: 'Do not use prefix `_` for a variable that is used.'
   Enabled: true
@@ -1817,6 +1920,11 @@ Lint/UnreachableCode:
   Description: 'Unreachable code.'
   Enabled: true
   VersionAdded: '0.9'
+
+Lint/UnreachableLoop:
+  Description: 'This cop checks for loops that will have at most one iteration.'
+  Enabled: pending
+  VersionAdded: '0.89'
 
 Lint/UnusedBlockArgument:
   Description: 'Checks for unused block arguments.'
@@ -1867,21 +1975,29 @@ Lint/UselessAssignment:
   Enabled: true
   VersionAdded: '0.11'
 
-Lint/UselessComparison:
-  Description: 'Checks for comparison of something with itself.'
-  Enabled: true
-  VersionAdded: '0.11'
-
 Lint/UselessElseWithoutRescue:
   Description: 'Checks for useless `else` in `begin..end` without `rescue`.'
   Enabled: true
   VersionAdded: '0.17'
+
+Lint/UselessMethodDefinition:
+  Description: 'Checks for useless method definitions.'
+  Enabled: pending
+  VersionAdded: '0.90'
+  Safe: false
+  AllowComments: true
 
 Lint/UselessSetterCall:
   Description: 'Checks for useless setter call to a local variable.'
   Enabled: true
   VersionAdded: '0.13'
   VersionChanged: '0.80'
+  Safe: false
+
+Lint/UselessTimes:
+  Description: 'Checks for useless `Integer#times` calls.'
+  Enabled: pending
+  VersionAdded: '0.91'
   Safe: false
 
 Lint/Void:
@@ -1905,15 +2021,16 @@ Metrics/AbcSize:
   # The ABC size is a calculated magnitude, so this number can be an Integer or
   # a Float.
   IgnoredMethods: []
-  Max: 15
+  Max: 17
 
 Metrics/BlockLength:
   Description: 'Avoid long blocks with many lines.'
   Enabled: true
   VersionAdded: '0.44'
-  VersionChanged: '0.66'
+  VersionChanged: '0.87'
   CountComments: false  # count full line comments?
   Max: 25
+  CountAsOne: []
   ExcludedMethods:
     # By default, exclude the `#refine` method, as it tends to have larger
     # associated blocks.
@@ -1934,8 +2051,10 @@ Metrics/ClassLength:
   Description: 'Avoid classes longer than 100 lines of code.'
   Enabled: true
   VersionAdded: '0.25'
+  VersionChanged: '0.87'
   CountComments: false  # count full line comments?
   Max: 100
+  CountAsOne: []
 
 # Avoid complex methods.
 Metrics/CyclomaticComplexity:
@@ -1953,17 +2072,20 @@ Metrics/MethodLength:
   StyleGuide: '#short-methods'
   Enabled: true
   VersionAdded: '0.25'
-  VersionChanged: '0.59.2'
+  VersionChanged: '0.87'
   CountComments: false  # count full line comments?
   Max: 10
+  CountAsOne: []
   ExcludedMethods: []
 
 Metrics/ModuleLength:
   Description: 'Avoid modules longer than 100 lines of code.'
   Enabled: true
   VersionAdded: '0.31'
+  VersionChanged: '0.87'
   CountComments: false  # count full line comments?
   Max: 100
+  CountAsOne: []
 
 Metrics/ParameterLists:
   Description: 'Avoid parameter lists longer than three or four parameters.'
@@ -1981,7 +2103,7 @@ Metrics/PerceivedComplexity:
   VersionAdded: '0.25'
   VersionChanged: '0.81'
   IgnoredMethods: []
-  Max: 7
+  Max: 8
 
 ################## Migration #############################
 
@@ -2001,10 +2123,12 @@ Naming/AccessorMethodName:
   VersionAdded: '0.50'
 
 Naming/AsciiIdentifiers:
-  Description: 'Use only ascii symbols in identifiers.'
+  Description: 'Use only ascii symbols in identifiers and constants.'
   StyleGuide: '#english-identifiers'
   Enabled: true
   VersionAdded: '0.50'
+  VersionChanged: '0.87'
+  AsciiConstants: true
 
 Naming/BinaryOperatorParameterName:
   Description: 'When defining binary operators, name the argument other.'
@@ -2171,17 +2295,18 @@ Naming/MethodParameterName:
   AllowNamesEndingInNumbers: true
   # Allowed names that will not register an offense
   AllowedNames:
-    - io
-    - id
-    - to
-    - by
-    - 'on'
-    - in
     - at
-    - ip
+    - by
     - db
+    - id
+    - in
+    - io
+    - ip
+    - of
+    - 'on'
     - os
     - pp
+    - to
   # Forbidden names that will register an offense
   ForbiddenNames: []
 
@@ -2297,6 +2422,17 @@ Style/AccessModifierDeclarations:
     - group
   AllowModifiersOnSymbols: true
 
+Style/AccessorGrouping:
+  Description: 'Checks for grouping of accessors in `class` and `module` bodies.'
+  Enabled: 'pending'
+  VersionAdded: '0.87'
+  EnforcedStyle: grouped
+  SupportedStyles:
+    # separated: each accessor goes in a separate statement.
+    # grouped: accessors are grouped into a single statement.
+    - separated
+    - grouped
+
 Style/Alias:
   Description: 'Use alias instead of alias_method.'
   StyleGuide: '#alias-method-lexically'
@@ -2320,6 +2456,15 @@ Style/AndOr:
   SupportedStyles:
     - always
     - conditionals
+
+Style/ArrayCoercion:
+  Description: >-
+                  Use Array() instead of explicit Array check or [*var], when dealing
+                  with a variable you want to treat as an Array, but you're not certain it's an array.
+  StyleGuide: '#array-coercion'
+  Safe: false
+  Enabled: false
+  VersionAdded: '0.88'
 
 Style/ArrayJoin:
   Description: 'Use Array#join instead of Array#*.'
@@ -2363,6 +2508,13 @@ Style/BeginBlock:
   StyleGuide: '#no-BEGIN-blocks'
   Enabled: true
   VersionAdded: '0.9'
+
+Style/BisectedAttrAccessor:
+  Description: >-
+                Checks for places where `attr_reader` and `attr_writer`
+                for the same method can be combined into single `attr_accessor`.
+  Enabled: 'pending'
+  VersionAdded: '0.87'
 
 Style/BlockComments:
   Description: 'Do not use block comments.'
@@ -2486,6 +2638,7 @@ Style/CaseEquality:
   StyleGuide: '#no-case-equality'
   Enabled: true
   VersionAdded: '0.9'
+  VersionChanged: '0.89'
   # If AllowOnConstant is enabled, the cop will ignore violations when the receiver of
   # the case equality operator is a constant.
   #
@@ -2495,6 +2648,13 @@ Style/CaseEquality:
   #   # good
   #   String === "string"
   AllowOnConstant: false
+
+Style/CaseLikeIf:
+  Description: 'This cop identifies places where `if-elsif` constructions can be replaced with `case-when`.'
+  StyleGuide: '#case-vs-if-else'
+  Enabled: 'pending'
+  Safe: false
+  VersionAdded: '0.88'
 
 Style/CharacterLiteral:
   Description: 'Checks for uses of character literals.'
@@ -2511,7 +2671,6 @@ Style/ClassAndModuleChildren:
   # have the knowledge to perform either operation safely and thus requires
   # manual oversight.
   SafeAutoCorrect: false
-  AutoCorrect: false
   Enabled: true
   VersionAdded: '0.19'
   #
@@ -2549,6 +2708,16 @@ Style/ClassMethods:
   Enabled: true
   VersionAdded: '0.9'
   VersionChanged: '0.20'
+
+Style/ClassMethodsDefinitions:
+  Description: 'Enforces using `def self.method_name` or `class << self` to define class methods.'
+  StyleGuide: '#def-self-class-methods'
+  Enabled: false
+  VersionAdded: '0.89'
+  EnforcedStyle:  def_self
+  SupportedStyles:
+    - def_self
+    - self_class
 
 Style/ClassVars:
   Description: 'Avoid the use of class variables.'
@@ -2589,6 +2758,14 @@ Style/ColonMethodDefinition:
   StyleGuide: '#colon-method-definition'
   Enabled: true
   VersionAdded: '0.52'
+
+Style/CombinableLoops:
+  Description: >-
+                  Checks for places where multiple consecutive loops over the same data
+                  can be combined into a single loop.
+  Enabled: pending
+  Safe: false
+  VersionAdded: '0.90'
 
 Style/CommandLiteral:
   Description: 'Use `` or %x around command literals.'
@@ -2686,7 +2863,8 @@ Style/DateTime:
   StyleGuide: '#date--time'
   Enabled: false
   VersionAdded: '0.51'
-  VersionChanged: '0.59'
+  VersionChanged: '0.92'
+  SafeAutoCorrect: false
   AllowCoercion: false
 
 Style/DefWithParentheses:
@@ -2833,6 +3011,16 @@ Style/ExpandPathArguments:
   Enabled: true
   VersionAdded: '0.53'
 
+Style/ExplicitBlockArgument:
+  Description: >-
+                  Consider using explicit block argument to avoid writing block literal
+                  that just passes its arguments to another block.
+  StyleGuide: '#block-argument'
+  Enabled: pending
+  # May change the yielding arity.
+  Safe: false
+  VersionAdded: '0.89'
+
 Style/ExponentialNotation:
   Description: 'When using exponential notation, favor a mantissa between 1 (inclusive) and 10 (exclusive).'
   StyleGuide: '#exponential-notation'
@@ -2914,7 +3102,14 @@ Style/FrozenStringLiteralComment:
     # `never` will enforce that the frozen string literal comment does not
     # exist in a file.
     - never
-  Safe: false
+  SafeAutoCorrect: false
+
+Style/GlobalStdStream:
+  Description: 'Enforces the use of `$stdout/$stderr/$stdin` instead of `STDOUT/STDERR/STDIN`.'
+  StyleGuide: '#global-stdout'
+  Enabled: pending
+  VersionAdded: '0.89'
+  SafeAutoCorrect: false
 
 Style/GlobalVars:
   Description: 'Do not introduce global variables.'
@@ -2935,12 +3130,34 @@ Style/GuardClause:
   # needs to have to trigger this cop
   MinBodyLength: 1
 
+Style/HashAsLastArrayItem:
+  Description: >-
+                 Checks for presence or absence of braces around hash literal as a last
+                 array item depending on configuration.
+  StyleGuide: '#hash-literal-as-last-array-item'
+  Enabled: 'pending'
+  VersionAdded: '0.88'
+  EnforcedStyle: braces
+  SupportedStyles:
+    - braces
+    - no_braces
+
 Style/HashEachMethods:
   Description: 'Use Hash#each_key and Hash#each_value.'
   StyleGuide: '#hash-each'
   Enabled: pending
   VersionAdded: '0.80'
   Safe: false
+
+Style/HashLikeCase:
+  Description: >-
+                  Checks for places where `case-when` represents a simple 1:1
+                  mapping and can be replaced with a hash lookup.
+  Enabled: 'pending'
+  VersionAdded: '0.88'
+  # `MinBranchesCount` defines the number of branches `case` needs to have
+  # to trigger this cop
+  MinBranchesCount: 3
 
 Style/HashSyntax:
   Description: >-
@@ -2966,15 +3183,17 @@ Style/HashSyntax:
   PreferHashRocketsForNonAlnumEndingSymbols: false
 
 Style/HashTransformKeys:
-  Description: 'Prefer `transform_keys` over `each_with_object` and `map`.'
+  Description: 'Prefer `transform_keys` over `each_with_object`, `map`, or `to_h`.'
   Enabled: 'pending'
   VersionAdded: '0.80'
+  VersionChanged: '0.90'
   Safe: false
 
 Style/HashTransformValues:
-  Description: 'Prefer `transform_values` over `each_with_object` and `map`.'
+  Description: 'Prefer `transform_values` over `each_with_object`, `map`, or `to_h`.'
   Enabled: 'pending'
   VersionAdded: '0.80'
+  VersionChanged: '0.90'
   Safe: false
 
 Style/IdenticalConditionalBranches:
@@ -3065,11 +3284,22 @@ Style/IpAddresses:
   Description: "Don't include literal IP addresses in code."
   Enabled: false
   VersionAdded: '0.58'
-  VersionChanged: '0.77'
+  VersionChanged: '0.91'
   # Allow addresses to be permitted
   AllowedAddresses:
     - "::"
     # :: is a valid IPv6 address, but could potentially be legitimately in code
+  Exclude:
+    - '**/*.gemfile'
+    - '**/Gemfile'
+    - '**/gems.rb'
+    - '**/*.gemspec'
+
+Style/KeywordParametersOrder:
+  Description: 'Enforces that optional keyword parameters are placed at the end of the parameters list.'
+  StyleGuide: '#keyword-parameters-order'
+  Enabled: pending
+  VersionAdded: '0.90'
 
 Style/Lambda:
   Description: 'Use the new lambda literal syntax for single-line blocks.'
@@ -3148,12 +3378,6 @@ Style/MethodDefParentheses:
     - require_parentheses
     - require_no_parentheses
     - require_no_parentheses_except_multiline
-
-Style/MethodMissingSuper:
-  Description: Checks for `method_missing` to call `super`.
-  StyleGuide: '#no-method-missing'
-  Enabled: true
-  VersionAdded: '0.56'
 
 Style/MinMax:
   Description: >-
@@ -3450,7 +3674,6 @@ Style/NumericPredicate:
   # object. Switching these methods has to be done with knowledge of the types
   # of the variables which rubocop doesn't have.
   SafeAutoCorrect: false
-  AutoCorrect: false
   Enabled: true
   VersionAdded: '0.42'
   VersionChanged: '0.59'
@@ -3466,12 +3689,13 @@ Style/NumericPredicate:
 
 Style/OneLineConditional:
   Description: >-
-                 Favor the ternary operator(?:) over
-                 if/then/else/end constructs.
+                 Favor the ternary operator (?:) or multi-line constructs over
+                 single-line if/then/else/end constructs.
   StyleGuide: '#ternary-operator'
   Enabled: true
+  AlwaysCorrectToMultiline: false
   VersionAdded: '0.9'
-  VersionChanged: '0.38'
+  VersionChanged: '0.90'
 
 Style/OptionHash:
   Description: "Don't use option hashes when you can use keyword arguments."
@@ -3495,6 +3719,15 @@ Style/OptionalArguments:
   Safe: false
   VersionAdded: '0.33'
   VersionChanged: '0.83'
+
+Style/OptionalBooleanParameter:
+  Description: 'Use keyword arguments when defining method with boolean argument.'
+  StyleGuide: '#boolean-keyword-arguments'
+  Enabled: pending
+  Safe: false
+  VersionAdded: '0.89'
+  AllowedMethods:
+    - respond_to_missing?
 
 Style/OrAssignment:
   Description: 'Recommend usage of double pipe equals (||=) where applicable.'
@@ -3592,6 +3825,11 @@ Style/RandomWithOffset:
   Enabled: true
   VersionAdded: '0.52'
 
+Style/RedundantAssignment:
+  Description: 'Checks for redundant assignment before returning.'
+  Enabled: 'pending'
+  VersionAdded: '0.87'
+
 Style/RedundantBegin:
   Description: "Don't use begin blocks when they are not needed."
   StyleGuide: '#begin-implicit'
@@ -3633,6 +3871,14 @@ Style/RedundantFetchBlock:
   # This can be dangerous since constants will not be defined at that moment.
   SafeForConstants: false
   VersionAdded: '0.86'
+
+Style/RedundantFileExtensionInRequire:
+  Description: >-
+                  Checks for the presence of superfluous `.rb` extension in
+                  the filename provided to `require` and `require_relative`.
+  StyleGuide: '#no-explicit-rb-to-require'
+  Enabled: 'pending'
+  VersionAdded: '0.88'
 
 Style/RedundantFreeze:
   Description: "Checks usages of Object#freeze on immutable objects."
@@ -3681,6 +3927,12 @@ Style/RedundantSelf:
   Enabled: true
   VersionAdded: '0.10'
   VersionChanged: '0.13'
+
+Style/RedundantSelfAssignment:
+  Description: 'Checks for places where redundant assignments are made for in place modification methods.'
+  Enabled: pending
+  Safe: false
+  VersionAdded: '0.90'
 
 Style/RedundantSort:
   Description: >-
@@ -3744,6 +3996,8 @@ Style/SafeNavigation:
                   This cop transforms usages of a method call safeguarded by
                   a check for the existence of the object to
                   safe navigation (`&.`).
+                  Auto-correction is unsafe as it assumes the object will
+                  be `nil` or truthy, but never `false`.
   Enabled: true
   VersionAdded: '0.43'
   VersionChanged: '0.77'
@@ -3756,6 +4010,7 @@ Style/SafeNavigation:
     - presence
     - try
     - try!
+  SafeAutoCorrect: false
 
 Style/Sample:
   Description: >-
@@ -3801,6 +4056,12 @@ Style/SignalException:
     - only_fail
     - semantic
 
+Style/SingleArgumentDig:
+  Description: 'Avoid using single argument dig method.'
+  Enabled: pending
+  VersionAdded: '0.89'
+  Safe: false
+
 Style/SingleLineBlockParams:
   Description: 'Enforces the names of some block params.'
   Enabled: false
@@ -3827,6 +4088,14 @@ Style/SlicingWithRange:
   Enabled: pending
   VersionAdded: '0.83'
   Safe: false
+
+Style/SoleNestedConditional:
+  Description: >-
+                  Finds sole nested conditional nodes
+                  which can be merged into outer conditional node.
+  Enabled: pending
+  VersionAdded: '0.89'
+  AllowModifier: false
 
 Style/SpecialGlobalVars:
   Description: 'Avoid Perl-style global variables.'
@@ -3855,6 +4124,13 @@ Style/StderrPuts:
   StyleGuide: '#warn'
   Enabled: true
   VersionAdded: '0.51'
+
+Style/StringConcatenation:
+  Description: 'Checks for places where string concatenation can be replaced with string interpolation.'
+  StyleGuide: '#string-interpolation'
+  Enabled: pending
+  Safe: false
+  VersionAdded: '0.89'
 
 Style/StringHashKeys:
   Description: 'Prefer symbols instead of strings as hash keys.'

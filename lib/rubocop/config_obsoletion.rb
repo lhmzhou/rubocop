@@ -2,6 +2,7 @@
 
 module RuboCop
   # This class handles obsolete configuration.
+  # @api private
   class ConfigObsoletion
     RENAMED_COPS = {
       'Layout/AlignArguments' => 'Layout/ArgumentAlignment',
@@ -84,7 +85,12 @@ module RuboCop
       'Lint/InvalidCharacterLiteral' => 'it was never being actually triggered',
       'Lint/SpaceBeforeFirstArg' =>
         'it was a duplicate of `Layout/SpaceBeforeFirstArg`. Please use ' \
-        '`Layout/SpaceBeforeFirstArg` instead'
+        '`Layout/SpaceBeforeFirstArg` instead',
+      'Style/MethodMissingSuper' => 'it has been superseded by `Lint/MissingSuper`. Please use ' \
+        '`Lint/MissingSuper` instead',
+      'Lint/UselessComparison' => 'it has been superseded by '\
+        '`Lint/BinaryOperatorWithIdenticalOperands`. Please use '\
+        '`Lint/BinaryOperatorWithIdenticalOperands` instead'
     }.map do |cop_name, reason|
       [cop_name, "The `#{cop_name}` cop has been removed since #{reason}."]
     end

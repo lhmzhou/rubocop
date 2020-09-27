@@ -27,30 +27,28 @@ module RuboCop
       #   [1, 2, 3].shuffle[1..3]    # sample(3) might return a longer Array
       #   [1, 2, 3].shuffle[foo, bar]
       #   [1, 2, 3].shuffle(random: Random.new)
-      class Sample < Cop
+      class Sample < Base
+        extend AutoCorrector
+
         MSG = 'Use `%<correct>s` instead of `%<incorrect>s`.'
+        RESTRICT_ON_SEND = %i[first last [] at slice].freeze
 
         def_node_matcher :sample_candidate?, <<~PATTERN
-          (send $(send _ :shuffle $...) ${:first :last :[] :at :slice} $...)
+          (send $(send _ :shuffle $...) ${:#{RESTRICT_ON_SEND.join(' :')}} $...)
         PATTERN
 
         def on_send(node)
-          sample_candidate?(node) do |shuffle, shuffle_arg, method, method_args|
+          sample_candidate?(node) do |shuffle_node, shuffle_arg, method, method_args|
             return unless offensive?(method, method_args)
 
-            range = source_range(shuffle, node)
+            range = source_range(shuffle_node, node)
             message = message(shuffle_arg, method, method_args, range)
-            add_offense(node, location: range, message: message)
-          end
-        end
 
-        def autocorrect(node)
-          shuffle_node, shuffle_arg, method, method_args =
-            sample_candidate?(node)
-
-          lambda do |corrector|
-            corrector.replace(source_range(shuffle_node, node),
-                              correction(shuffle_arg, method, method_args))
+            add_offense(range, message: message) do |corrector|
+              corrector.replace(
+                source_range(shuffle_node, node), correction(shuffle_arg, method, method_args)
+              )
+            end
           end
         end
 

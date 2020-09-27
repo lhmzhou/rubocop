@@ -1,11 +1,12 @@
 # frozen_string_literal: true
 
-require 'set'
-
 module RuboCop
   # This class finds target files to inspect by scanning the directory tree
   # and picking ruby files.
+  # @api private
   class TargetFinder
+    HIDDEN_PATH_SUBSTRING = "#{File::SEPARATOR}."
+
     def initialize(config_store, options = {})
       @config_store = config_store
       @options = options
@@ -56,7 +57,8 @@ module RuboCop
       # Support Windows: Backslashes from command-line -> forward slashes
       base_dir = base_dir.gsub(File::ALT_SEPARATOR, File::SEPARATOR) if File::ALT_SEPARATOR
       all_files = find_files(base_dir, File::FNM_DOTMATCH)
-      hidden_files = Set.new(all_files - find_files(base_dir, 0))
+      # use file.include? for performance optimization
+      hidden_files = all_files.select { |file| file.include?(HIDDEN_PATH_SUBSTRING) }
       base_dir_config = @config_store.for(base_dir)
 
       target_files = all_files.select do |file|
@@ -114,10 +116,12 @@ module RuboCop
     end
 
     def ruby_extensions
-      ext_patterns = all_cops_include.select do |pattern|
-        pattern.start_with?('**/*.')
+      @ruby_extensions ||= begin
+        ext_patterns = all_cops_include.select do |pattern|
+          pattern.start_with?('**/*.')
+        end
+        ext_patterns.map { |pattern| pattern.sub('**/*', '') }
       end
-      ext_patterns.map { |pattern| pattern.sub('**/*', '') }
     end
 
     def ruby_filename?(file)
@@ -125,14 +129,17 @@ module RuboCop
     end
 
     def ruby_filenames
-      file_patterns = all_cops_include.reject do |pattern|
-        pattern.start_with?('**/*.')
+      @ruby_filenames ||= begin
+        file_patterns = all_cops_include.reject do |pattern|
+          pattern.start_with?('**/*.')
+        end
+        file_patterns.map { |pattern| pattern.sub('**/', '') }
       end
-      file_patterns.map { |pattern| pattern.sub('**/', '') }
     end
 
     def all_cops_include
-      @config_store.for('.').for_all_cops['Include'].map(&:to_s)
+      @all_cops_include ||=
+        @config_store.for_pwd.for_all_cops['Include'].map(&:to_s)
     end
 
     def ruby_executable?(file)
@@ -160,7 +167,7 @@ module RuboCop
     end
 
     def configured_include?(file)
-      @config_store.for('.').file_to_include?(file)
+      @config_store.for_pwd.file_to_include?(file)
     end
 
     def included_file?(file)
